@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const prisma = require("../config/prisma");
 
-exports.registerUser = async ({ name, email, phone, password }) => {
+async function registerUser ( name, email, phone, password ) {
   try {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -41,7 +41,11 @@ exports.registerUser = async ({ name, email, phone, password }) => {
     return user;
 
   } catch (error) {
-    console.error(error);
+    console.error("Register User Error:", error.message);
     throw error;
   }
 };
+
+module.exports = {
+    registerUser
+}
