@@ -1,6 +1,8 @@
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 
+// For Customer
+
 async function createOrder(userId) {
   try {
     logger.info("Create Order Endpoint Hit..");
@@ -149,8 +151,134 @@ async function getOrderById(userId, orderId) {
   }
 }
 
+async function cancelOrder(userId, orderId) {
+  try {
+    logger.info("Cancel Order Endpoint Hit..");
+    const order = await prisma.order.findFirst({
+      where: {
+        id: Number(orderId),
+        userId: Number(userId),
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Only PENDING orders can be cancelled
+    if (order.status !== "PENDING") {
+      throw new Error("This order can no longer be cancelled");
+    }
+
+    const cancelledOrder = await prisma.$transaction(async (tx) => {
+      // Restore stock
+      for (const item of order.items) {
+        await tx.product.update({
+          where: {
+            id: item.productId,
+          },
+          data: {
+            stock: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+
+      // Change order status
+      const updatedOrder = await tx.order.update({
+        where: {
+          id: order.id,
+        },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      return updatedOrder;
+    });
+    logger.info("Order Cancelled Successfully..");
+
+    return cancelledOrder;
+  } catch (error) {
+    logger.error("Cancling Order Error:", error.message);
+    throw error;
+  }
+}
+
+// For Admin
+
+async function getAllOrders() {
+  try {
+    logger.info("Get All Orders Admin Side Endpoint Hit..");
+    const orders = await prisma.order.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    logger.info("Orders Fetched Successfully on Admin Side");
+    return orders;
+  } catch (error) {
+    logger.error("Getting Orders on Admin Side Error:", error.message);
+    throw error;
+  }
+}
+
+async function updateOrderStatus(orderId, status) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: {
+        id: Number(orderId),
+      },
+    });
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    if (order.status === "CANCELLED") {
+      throw new Error("Cancelled orders cannot be updated");
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: {
+        id: Number(orderId),
+      },
+      data: {
+        status,
+      },
+    });
+
+    return updatedOrder;
+  } catch (error) {
+    logger.error("Getting Orders on Admin Side Error:", error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   createOrder,
   getMyOrders,
   getOrderById,
+  cancelOrder,
+  getAllOrders,
+  updateOrderStatus,
 };

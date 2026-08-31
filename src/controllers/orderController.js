@@ -49,8 +49,26 @@ async function getOrderById(req, res) {
   }
 }
 
+async function cancelOrder(req, res) {
+  try {
+    const order = await orderService.cancelOrder(req.user.id, req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
 module.exports = {
   checkout,
   getMyOrders,
   getOrderById,
+  cancelOrder,
 };

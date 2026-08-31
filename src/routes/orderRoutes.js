@@ -11,10 +11,13 @@ router.use(authenticate);
 // Checkout
 router.post("/checkout", orderController.checkout);
 
-// Get my orders
+// Get all orders
 router.get("/", orderController.getMyOrders);
 
-// Get one of my orders
+// Cancel Order
+router.put("/:id/cancel", orderController.cancelOrder);
+
+// Get order By Id
 router.get("/:id", orderController.getOrderById);
 
 module.exports = router;
