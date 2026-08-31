@@ -64,11 +64,15 @@ async function updateCartItem(req, res) {
 
 async function removeFromCart(req, res) {
   try {
-    await cartService.removeFromCart(req.user.id, req.params.productId);
+    const deleteproduct = await cartService.removeFromCart(
+      req.user.id,
+      req.params.productId,
+    );
 
     res.status(200).json({
       success: true,
       message: "Product removed from cart",
+      product: deleteproduct,
     });
   } catch (error) {
     res.status(400).json({
