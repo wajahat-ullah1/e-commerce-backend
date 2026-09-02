@@ -12,18 +12,13 @@ function uploadImage(buffer) {
         if (error) {
           reject(error);
         } else {
+          logger.info("Image Uploaded Successfully..");
           resolve(result);
         }
       },
     );
-    logger.info("Image Uploaded Successfully..");
     uploadStream.end(buffer);
   });
-  // try {
-  // } catch (error) {
-  //   logger.error("Uploading Image Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function deleteImage(publicId) {

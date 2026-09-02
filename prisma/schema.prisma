@@ -35,6 +35,9 @@ model User {
   password String
   role     Role   @default(CUSTOMER)
 
+  profileImage         String?
+  profileImagePublicId String?
+
   cart   Cart?
   orders Order[]
 

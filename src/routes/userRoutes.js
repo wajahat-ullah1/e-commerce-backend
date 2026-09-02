@@ -1,17 +1,24 @@
 const express = require("express");
 
+const userController = require("../controllers/userController");
 const authenticate = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 const router = express.Router();
 
-router.get("/profile", authenticate, (req, res) => {
+router.use(authenticate);
 
-    res.json({
-        success: true,
-        message: "You accessed a protected route!",
-        user: req.user
-    });
+// Get my profile
+router.get("/profile", userController.getMyProfile);
 
-});
+// Update my profile
+router.put("/profile", userController.updateMyProfile);
+
+// Upload Image
+router.put(
+  "/profile/image",
+  upload.single("image"),
+  userController.updateProfileImage,
+);
 
 module.exports = router;
