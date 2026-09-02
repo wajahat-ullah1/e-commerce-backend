@@ -1,40 +1,27 @@
 const orderService = require("../services/orderService");
+const asyncHandler = require("../utils/asyncHandler");
 
-async function getAllOrders(req, res) {
-  try {
-    const orders = await orderService.getAllOrders();
+const getAllOrders = asyncHandler(async (req, res) => {
+  const orders = await orderService.getAllOrders();
 
-    res.status(200).json({
-      success: true,
-      orders,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(200).json({
+    success: true,
+    orders,
+  });
+});
 
-async function updateOrderStatus(req, res) {
-  try {
-    const order = await orderService.updateOrderStatus(
-      req.params.id,
-      req.body.status,
-    );
+const updateOrderStatus = asyncHandler(async (req, res) => {
+  const order = await orderService.updateOrderStatus(
+    req.params.id,
+    req.body.status,
+  );
 
-    res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-      order,
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(200).json({
+    success: true,
+    message: "Order status updated successfully",
+    order,
+  });
+});
 
 module.exports = {
   getAllOrders,

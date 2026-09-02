@@ -1,8 +1,8 @@
 const cartService = require("../services/cartService");
+const asyncHandler = require("../utils/asyncHandler");
 
-async function addToCart(req, res) {
-  try {
-    const { productId, quantity } = req.body;
+const addToCart = asyncHandler(async (req, res) => {
+  const { productId, quantity } = req.body;
 
     const cartItem = await cartService.addToCart(
       req.user.id,
@@ -15,33 +15,19 @@ async function addToCart(req, res) {
       message: "Product added to cart",
       cartItem,
     });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+});
 
-async function getCart(req, res) {
-  try {
+const getCart = asyncHandler(async (req, res) => {
     const cart = await cartService.getCart(req.user.id);
 
     res.status(200).json({
       success: true,
       cart,
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+});
 
-async function updateCartItem(req, res) {
-  try {
-    const { quantity } = req.body;
+const updateCartItem = asyncHandler(async (req, res) => {
+  const { quantity } = req.body;
 
     const cartItem = await cartService.updateCartItem(
       req.user.id,
@@ -54,18 +40,11 @@ async function updateCartItem(req, res) {
       message: "Cart updated successfully",
       cartItem,
     });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+});
 
-async function removeFromCart(req, res) {
-  try {
-    const deleteproduct = await cartService.removeFromCart(
-      req.user.id,
+const removeFromCart = asyncHandler(async (req, res) => {
+  const deleteproduct = await cartService.removeFromCart(
+    req.user.id,
       req.params.productId,
     );
 
@@ -74,13 +53,7 @@ async function removeFromCart(req, res) {
       message: "Product removed from cart",
       product: deleteproduct,
     });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+});
 
 module.exports = {
   addToCart,

@@ -4,6 +4,9 @@ const categoryController = require("../controllers/categoryController");
 const authenticate = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
+const validate = require("../middleware/validateMiddleware");
+const { categorySchema } = require("../validators/categoryValidator");
+
 const router = express.Router();
 
 // Public - Everyone can see categories
@@ -14,6 +17,7 @@ router.post(
   "/",
   authenticate,
   authorize("ADMIN"),
+  validate(categorySchema),
   categoryController.createCategory,
 );
 
@@ -22,6 +26,7 @@ router.put(
   "/:id",
   authenticate,
   authorize("ADMIN"),
+  validate(categorySchema),
   categoryController.updateCategory,
 );
 

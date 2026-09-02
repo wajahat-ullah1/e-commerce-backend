@@ -1,70 +1,43 @@
 const orderService = require("../services/orderService");
+const asyncHandler = require("../utils/asyncHandler");
 
-async function checkout(req, res) {
-  try {
-    const order = await orderService.createOrder(req.user.id);
+const checkout = asyncHandler(async (req, res) => {
+  const order = await orderService.createOrder(req.user.id);
 
-    res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      order,
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(201).json({
+    success: true,
+    message: "Order created successfully",
+    order,
+  });
+});
 
-async function getMyOrders(req, res) {
-  try {
-    const orders = await orderService.getMyOrders(req.user.id);
+const getMyOrders = asyncHandler(async (req, res) => {
+  const orders = await orderService.getMyOrders(req.user.id);
 
-    res.status(200).json({
-      success: true,
-      orders,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(200).json({
+    success: true,
+    orders,
+  });
+});
 
-async function getOrderById(req, res) {
-  try {
-    const order = await orderService.getOrderById(req.user.id, req.params.id);
+const getOrderById = asyncHandler(async (req, res) => {
+  const order = await orderService.getOrderById(req.user.id, req.params.id);
 
-    res.status(200).json({
-      success: true,
-      order,
-    });
-  } catch (error) {
-    res.status(404).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(200).json({
+    success: true,
+    order,
+  });
+});
 
-async function cancelOrder(req, res) {
-  try {
-    const order = await orderService.cancelOrder(req.user.id, req.params.id);
+const cancelOrder = asyncHandler(async (req, res) => {
+  const order = await orderService.cancelOrder(req.user.id, req.params.id);
 
-    res.status(200).json({
-      success: true,
-      message: "Order cancelled successfully",
-      order,
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+  res.status(200).json({
+    success: true,
+    message: "Order cancelled successfully",
+    order,
+  });
+});
 
 module.exports = {
   checkout,

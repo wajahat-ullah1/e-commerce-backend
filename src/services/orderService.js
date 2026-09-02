@@ -1,15 +1,58 @@
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
+const AppError = require("../utils/AppError");
 
 // For Customer
 
 async function createOrder(userId) {
-  try {
-    logger.info("Create Order Endpoint Hit..");
-    // Get user's cart with products
-    const cart = await prisma.cart.findUnique({
-      where: {
+  logger.info("Create Order Endpoint Hit..");
+  // Get user's cart with products
+  const cart = await prisma.cart.findUnique({
+    where: {
+      userId: Number(userId),
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+
+  // Check cart
+  if (!cart || cart.items.length === 0) {
+    throw new AppError("Your cart is empty", 404);
+  }
+
+  // Check stock
+  for (const item of cart.items) {
+    if (item.quantity > item.product.stock) {
+      throw new AppError(`${item.product.name} does not have enough stock`, 404);
+    }
+  }
+
+  // Calculate total amount
+  let totalAmount = 0;
+
+  for (const item of cart.items) {
+    totalAmount += Number(item.product.price) * item.quantity;
+  }
+
+  // Create order using transaction
+  const order = await prisma.$transaction(async (tx) => {
+    // Create Order
+    const newOrder = await tx.order.create({
+      data: {
         userId: Number(userId),
+        totalAmount,
+        items: {
+          create: cart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        },
       },
       include: {
         items: {
@@ -20,258 +63,230 @@ async function createOrder(userId) {
       },
     });
 
-    // Check cart
-    if (!cart || cart.items.length === 0) {
-      throw new Error("Your cart is empty");
-    }
-
-    // Check stock
+    // Reduce product stock
     for (const item of cart.items) {
-      if (item.quantity > item.product.stock) {
-        throw new Error(`${item.product.name} does not have enough stock`);
-      }
-    }
-
-    // Calculate total amount
-    let totalAmount = 0;
-
-    for (const item of cart.items) {
-      totalAmount += Number(item.product.price) * item.quantity;
-    }
-
-    // Create order using transaction
-    const order = await prisma.$transaction(async (tx) => {
-      // Create Order
-      const newOrder = await tx.order.create({
-        data: {
-          userId: Number(userId),
-          totalAmount,
-          items: {
-            create: cart.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.product.price,
-            })),
-          },
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
-      });
-
-      // Reduce product stock
-      for (const item of cart.items) {
-        await tx.product.update({
-          where: {
-            id: item.productId,
-          },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        });
-      }
-
-      // Clear cart
-      await tx.cartItem.deleteMany({
+      await tx.product.update({
         where: {
-          cartId: cart.id,
+          id: item.productId,
+        },
+        data: {
+          stock: {
+            decrement: item.quantity,
+          },
         },
       });
+    }
 
-      return newOrder;
+    // Clear cart
+    await tx.cartItem.deleteMany({
+      where: {
+        cartId: cart.id,
+      },
     });
 
-    logger.info("Order Create Successfully..");
-    return order;
-  } catch (error) {
-    logger.error("Creating Order Error:", error.message);
-    throw error;
-  }
+    return newOrder;
+  });
+
+  logger.info("Order Create Successfully..");
+  return order;
+  // try {
+  // } catch (error) {
+  //   logger.error("Creating Order Error:", error.message);
+  //   throw error;
+  // }
 }
 
 async function getMyOrders(userId) {
-  try {
-    logger.info("Get All Orders Endpoint Hit..");
-    const orders = await prisma.order.findMany({
-      where: {
-        userId: Number(userId),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
+  logger.info("Get All Orders Endpoint Hit..");
+  const orders = await prisma.order.findMany({
+    where: {
+      userId: Number(userId),
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-    logger.info("Orders Fetched Successfully..");
-    return orders;
-  } catch (error) {
-    logger.error("Getting Order Error:", error.message);
-    throw error;
-  }
+  logger.info("Orders Fetched Successfully..");
+  return orders;
+  // try {
+  // } catch (error) {
+  //   logger.error("Getting Order Error:", error.message);
+  //   throw error;
+  // }
 }
 
 async function getOrderById(userId, orderId) {
-  try {
-    logger.info("Get Order By Id Endpoint Hit..");
-    const order = await prisma.order.findFirst({
-      where: {
-        id: Number(orderId),
-        userId: Number(userId),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
+  logger.info("Get Order By Id Endpoint Hit..");
+  const order = await prisma.order.findFirst({
+    where: {
+      id: Number(orderId),
+      userId: Number(userId),
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
         },
       },
-    });
+    },
+  });
 
-    if (!order) {
-      throw new Error("Order not found");
-    }
-    logger.info("Order Fetched Successfully..");
-
-    return order;
-  } catch (error) {
-    logger.error("Getting Order Error:", error.message);
-    throw error;
+  if (!order) {
+    throw new AppError("Order not found", 404);
   }
+  logger.info("Order Fetched Successfully..");
+
+  return order;
+  // try {
+  // } catch (error) {
+  //   logger.error("Getting Order Error:", error.message);
+  //   throw error;
+  // }
 }
 
 async function cancelOrder(userId, orderId) {
-  try {
-    logger.info("Cancel Order Endpoint Hit..");
-    const order = await prisma.order.findFirst({
-      where: {
-        id: Number(orderId),
-        userId: Number(userId),
-      },
-      include: {
-        items: true,
-      },
-    });
+  logger.info("Cancel Order Endpoint Hit..");
+  const order = await prisma.order.findFirst({
+    where: {
+      id: Number(orderId),
+      userId: Number(userId),
+    },
+    include: {
+      items: true,
+    },
+  });
 
-    if (!order) {
-      throw new Error("Order not found");
-    }
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
 
-    // Only PENDING orders can be cancelled
-    if (order.status !== "PENDING") {
-      throw new Error("This order can no longer be cancelled");
-    }
+  // Only PENDING orders can be cancelled
+  if (order.status !== "PENDING") {
+    throw new AppError("This order can no longer be cancelled", 400);
+  }
 
-    const cancelledOrder = await prisma.$transaction(async (tx) => {
-      // Restore stock
-      for (const item of order.items) {
-        await tx.product.update({
-          where: {
-            id: item.productId,
-          },
-          data: {
-            stock: {
-              increment: item.quantity,
-            },
-          },
-        });
-      }
-
-      // Change order status
-      const updatedOrder = await tx.order.update({
+  const cancelledOrder = await prisma.$transaction(async (tx) => {
+    // Restore stock
+    for (const item of order.items) {
+      await tx.product.update({
         where: {
-          id: order.id,
+          id: item.productId,
         },
         data: {
-          status: "CANCELLED",
+          stock: {
+            increment: item.quantity,
+          },
         },
       });
+    }
 
-      return updatedOrder;
+    // Change order status
+    const updatedOrder = await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: "CANCELLED",
+      },
     });
-    logger.info("Order Cancelled Successfully..");
 
-    return cancelledOrder;
-  } catch (error) {
-    logger.error("Cancling Order Error:", error.message);
-    throw error;
-  }
+    return updatedOrder;
+  });
+  logger.info("Order Cancelled Successfully..");
+
+  return cancelledOrder;
+  // try {
+  // } catch (error) {
+  //   logger.error("Cancling Order Error:", error.message);
+  //   throw error;
+  // }
 }
 
 // For Admin
 
 async function getAllOrders() {
-  try {
-    logger.info("Get All Orders Admin Side Endpoint Hit..");
-    const orders = await prisma.order.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        items: {
-          include: {
-            product: true,
-          },
+  logger.info("Get All Orders Admin Side Endpoint Hit..");
+  const orders = await prisma.order.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
         },
       },
-      orderBy: {
-        createdAt: "desc",
+      items: {
+        include: {
+          product: true,
+        },
       },
-    });
-    logger.info("Orders Fetched Successfully on Admin Side");
-    return orders;
-  } catch (error) {
-    logger.error("Getting Orders on Admin Side Error:", error.message);
-    throw error;
-  }
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+  logger.info("Orders Fetched Successfully on Admin Side");
+  return orders;
+  // try {
+  // } catch (error) {
+  //   logger.error("Getting Orders on Admin Side Error:", error.message);
+  //   throw error;
+  // }
 }
 
 async function updateOrderStatus(orderId, status) {
-  try {
-    const order = await prisma.order.findUnique({
-      where: {
-        id: Number(orderId),
-      },
-    });
+  logger.info("Updating Order Status Endpoint Hit..");
+  const order = await prisma.order.findUnique({
+    where: {
+      id: Number(orderId),
+    },
+  });
 
-    if (!order) {
-      throw new Error("Order not found");
-    }
-
-    if (order.status === "CANCELLED") {
-      throw new Error("Cancelled orders cannot be updated");
-    }
-
-    const updatedOrder = await prisma.order.update({
-      where: {
-        id: Number(orderId),
-      },
-      data: {
-        status,
-      },
-    });
-
-    return updatedOrder;
-  } catch (error) {
-    logger.error("Getting Orders on Admin Side Error:", error.message);
-    throw error;
+  if (!order) {
+    throw new AppError("Order not found", 404);
   }
+
+  const allowedTransitions = {
+    PENDING: ["PROCESSING"],
+    PROCESSING: ["SHIPPED"],
+    SHIPPED: ["IN_TRANSIT"],
+    IN_TRANSIT: ["DELIVERED"],
+    DELIVERED: [],
+    CANCELLED: [],
+  };
+
+  if (!allowedTransitions[order.status].includes(status)) {
+    throw new AppError(
+      `Cannot change order status from ${order.status} to ${status}`,
+      400
+    );
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: {
+      id: Number(orderId),
+    },
+    data: {
+      status,
+    },
+  });
+
+  logger.info("Order Status Updated Successfully..");
+  return updatedOrder;
+  // try {
+  // } catch (error) {
+  //   logger.error("Udpdating Orders on Admin Side Error:", error.message);
+  //   throw error;
+  // }
 }
 
 module.exports = {
