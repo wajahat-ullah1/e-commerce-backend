@@ -52,8 +52,6 @@ model Address {
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fullName   String
-  phone      String
   addressLine1 String
   addressLine2 String?
   city       String

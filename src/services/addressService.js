@@ -4,9 +4,8 @@ const logger = require("../utils/logger");
 
 const createAddress = async (userId, data) => {
   logger.info(`Creating address for user ID: ${userId}`);
+
   const {
-    fullName,
-    phone,
     addressLine1,
     addressLine2,
     city,
@@ -16,10 +15,40 @@ const createAddress = async (userId, data) => {
     isDefault,
   } = data;
 
+  const numericUserId = Number(userId);
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: {
+      id: numericUserId,
+    },
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  // Check if the same address already exists for this user
+  const existingAddress = await prisma.address.findFirst({
+    where: {
+      userId: numericUserId,
+      addressLine1,
+      addressLine2: addressLine2 ?? null,
+      city,
+      state: state ?? null,
+      postalCode,
+      country,
+    },
+  });
+
+  if (existingAddress) {
+    throw new AppError("This address already exists", 409);
+  }
+
   // Check if user already has addresses
   const addressCount = await prisma.address.count({
     where: {
-      userId: Number(userId),
+      userId: numericUserId,
     },
   });
 
@@ -30,7 +59,7 @@ const createAddress = async (userId, data) => {
   if (shouldBeDefault) {
     await prisma.address.updateMany({
       where: {
-        userId: Number(userId),
+        userId: numericUserId,
         isDefault: true,
       },
       data: {
@@ -41,9 +70,7 @@ const createAddress = async (userId, data) => {
 
   const address = await prisma.address.create({
     data: {
-      userId: Number(userId),
-      fullName,
-      phone,
+      userId: numericUserId,
       addressLine1,
       addressLine2,
       city,
@@ -52,10 +79,22 @@ const createAddress = async (userId, data) => {
       country,
       isDefault: shouldBeDefault,
     },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
   });
+
   logger.info(
     `Address created for user ID: ${userId} with address ID: ${address.id}`,
   );
+
   return address;
 };
 
