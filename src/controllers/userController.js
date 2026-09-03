@@ -50,8 +50,20 @@ const updateProfileImage = asyncHandler(async (req, res) => {
   });
 });
 
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  await userService.changePassword(req.user.id, currentPassword, newPassword);
+
+  res.status(200).json({
+    success: true,
+    message: "Password changed successfully",
+  });
+});
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
   updateProfileImage,
+  changePassword,
 };

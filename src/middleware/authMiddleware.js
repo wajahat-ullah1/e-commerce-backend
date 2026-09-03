@@ -1,35 +1,54 @@
 const { verifyToken } = require("../utils/jwt");
+const prisma = require("../config/prisma");
+const AppError = require("../utils/AppError");
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. No token provided.",
-      });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new AppError("Access denied. No token provided.", 401);
     }
 
     const token = authHeader.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. Invalid token format.",
-      });
+      throw new AppError("Access denied. Invalid token format.", 401);
     }
 
     const decoded = verifyToken(token);
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: decoded.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        tokenVersion: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("User no longer exists", 401);
+    }
+
+    // Check token version
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      throw new AppError(
+        "Session expired. Please login again",
+        401
+      );
+    }
 
     req.user = decoded;
 
     next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+    next(error);
   }
 }
 
