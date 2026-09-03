@@ -42,6 +42,7 @@ model User {
   cart      Cart?
   orders    Order[]
   addresses Address[]
+  wishlist  WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,6 +90,7 @@ model Product {
 
   cartItems  CartItem[]
   orderItems OrderItem[]
+  wishlist   WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,6 +121,20 @@ model CartItem {
   @@unique([cartId, productId])
 }
 
+model WishlistItem {
+  id Int @id @default(autoincrement())
+
+  userId    Int
+  productId Int
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
 model Order {
   id Int @id @default(autoincrement())
 
@@ -127,6 +143,13 @@ model Order {
 
   status      OrderStatus @default(PENDING)
   totalAmount Decimal     @db.Decimal(10, 2)
+
+  shippingAddressLine1 String
+  shippingAddressLine2 String?
+  shippingCity         String
+  shippingState        String?
+  shippingPostalCode   String
+  shippingCountry      String
 
   items OrderItem[]
 
