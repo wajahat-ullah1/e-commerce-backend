@@ -25,6 +25,18 @@ enum OrderStatus {
   IN_TRANSIT
   DELIVERED
   CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
 
 model User {
@@ -150,6 +162,9 @@ model Order {
   shippingState        String?
   shippingPostalCode   String
   shippingCountry      String
+
+  paymentMethod PaymentMethod @default(COD)
+  paymentStatus PaymentStatus @default(PENDING)
 
   items OrderItem[]
 

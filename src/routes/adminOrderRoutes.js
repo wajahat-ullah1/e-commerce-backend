@@ -17,4 +17,6 @@ router.get("/", adminOrderController.getAllOrders);
 // Update order status
 router.put("/:id/status", adminOrderController.updateOrderStatus);
 
+router.put("/:id/return", adminOrderController.returnOrder);
+
 module.exports = router;

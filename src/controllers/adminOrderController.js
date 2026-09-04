@@ -23,7 +23,20 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   });
 });
 
+const returnOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const order = await orderService.returnOrder(id);
+
+  res.status(200).json({
+    success: true,
+    message: "Order marked as returned successfully",
+    order,
+  });
+});
+
 module.exports = {
   getAllOrders,
   updateOrderStatus,
+  returnOrder,
 };

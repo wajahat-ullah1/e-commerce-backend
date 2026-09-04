@@ -2,7 +2,9 @@ const orderService = require("../services/orderService");
 const asyncHandler = require("../utils/asyncHandler");
 
 const checkout = asyncHandler(async (req, res) => {
-  const order = await orderService.createOrder(req.user.id);
+  const { addressId } = req.body;
+
+  const order = await orderService.createOrder(req.user.id, addressId);
 
   res.status(201).json({
     success: true,

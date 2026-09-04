@@ -4,8 +4,18 @@ const AppError = require("../utils/AppError");
 
 // For Customer
 
-async function createOrder(userId) {
+async function createOrder(userId, addressId) {
   logger.info("Create Order Endpoint Hit..");
+  // Get user's shipping address
+  const address = await prisma.address.findFirst({
+    where: {
+      id: Number(addressId),
+      userId: Number(userId),
+    },
+  });
+  if (!address) {
+    throw new AppError("Shipping address not found", 404);
+  }
   // Get user's cart with products
   const cart = await prisma.cart.findUnique({
     where: {
@@ -28,7 +38,10 @@ async function createOrder(userId) {
   // Check stock
   for (const item of cart.items) {
     if (item.quantity > item.product.stock) {
-      throw new AppError(`${item.product.name} does not have enough stock`, 404);
+      throw new AppError(
+        `${item.product.name} does not have enough stock`,
+        404,
+      );
     }
   }
 
@@ -45,7 +58,19 @@ async function createOrder(userId) {
     const newOrder = await tx.order.create({
       data: {
         userId: Number(userId),
+
         totalAmount,
+
+        shippingAddressLine1: address.addressLine1,
+        shippingAddressLine2: address.addressLine2,
+        shippingCity: address.city,
+        shippingState: address.state,
+        shippingPostalCode: address.postalCode,
+        shippingCountry: address.country,
+
+        paymentMethod: "COD",
+        paymentStatus: "PENDING",
+
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,
@@ -54,6 +79,7 @@ async function createOrder(userId) {
           })),
         },
       },
+
       include: {
         items: {
           include: {
@@ -267,7 +293,7 @@ async function updateOrderStatus(orderId, status) {
   if (!allowedTransitions[order.status].includes(status)) {
     throw new AppError(
       `Cannot change order status from ${order.status} to ${status}`,
-      400
+      400,
     );
   }
 
@@ -289,6 +315,67 @@ async function updateOrderStatus(orderId, status) {
   // }
 }
 
+const returnOrder = async (orderId) => {
+  logger.info("Return Order Endpoint Hit..");
+  const order = await prisma.order.findUnique({
+    where: {
+      id: Number(orderId),
+    },
+    include: {
+      items: true,
+    },
+  });
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  if (order.status !== "IN_TRANSIT") {
+    throw new AppError("Only in-transit orders can be marked as returned", 400);
+  }
+
+  if (order.paymentStatus === "PAID") {
+    throw new AppError("A paid order cannot be marked as returned", 400);
+  }
+
+  const returnedOrder = await prisma.$transaction(async (tx) => {
+    // Restore stock
+    for (const item of order.items) {
+      await tx.product.update({
+        where: {
+          id: item.productId,
+        },
+        data: {
+          stock: {
+            increment: item.quantity,
+          },
+        },
+      });
+    }
+
+    // Mark order as returned
+    const updatedOrder = await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: "RETURNED",
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    return updatedOrder;
+  });
+  logger.info("Order Marked as Returned Successfully..");
+  return returnedOrder;
+};
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -296,4 +383,5 @@ module.exports = {
   cancelOrder,
   getAllOrders,
   updateOrderStatus,
+  returnOrder,
 };
