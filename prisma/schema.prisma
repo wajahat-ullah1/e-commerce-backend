@@ -53,6 +53,7 @@ model User {
 
   cart      Cart?
   orders    Order[]
+  reviews   Review[]
   addresses Address[]
   wishlist  WishlistItem[]
 
@@ -102,6 +103,7 @@ model Product {
 
   cartItems  CartItem[]
   orderItems OrderItem[]
+  reviews    Review[]
   wishlist   WishlistItem[]
 
   createdAt DateTime @default(now())
@@ -183,4 +185,22 @@ model OrderItem {
 
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+}
+
+model Review {
+  id Int @id @default(autoincrement())
+
+  rating  Int
+  comment String?
+
+  userId    Int
+  productId Int
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
 }

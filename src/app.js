@@ -13,6 +13,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const adminOrderRoutes = require("./routes/adminOrderRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
@@ -38,7 +39,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/dashboard", dashboardRoutes);
 app.use("/api/payment", paymentRoutes);
-
+app.use("/api/products", reviewRoutes);
 // Global Error Handler
 app.use(errorMiddleware);
 
