@@ -2,10 +2,156 @@ const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
 
-// For Customer
+//For Customers **********************************************************
 
+// Guest Users
+async function createGuestOrder(data) {
+  logger.info("Create Guest Order Endpoint Hit..");
+  const {
+    guestCartId,
+    fullName,
+    phone,
+    email,
+    addressLine1,
+    addressLine2,
+    city,
+    state,
+    postalCode,
+    country,
+  } = data;
+
+  if (!guestCartId) {
+    throw new AppError("Guest cart id is required", 400);
+  }
+
+  // Get guest cart with products, straight from the DB (not from the request body)
+  const guestCart = await prisma.guestCart.findUnique({
+    where: {
+      id: guestCartId,
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+
+  if (!guestCart) {
+    throw new AppError("Guest cart not found", 404);
+  }
+
+  // Make sure cart is not empty
+  if (guestCart.items.length === 0) {
+    throw new AppError("Your cart is empty", 400);
+  }
+
+  let totalAmount = 0;
+
+  // Validate stock and calculate total (price/quantity come from DB, not frontend)
+  for (const item of guestCart.items) {
+    if (item.quantity > item.product.stock) {
+      throw new AppError(
+        `${item.product.name} does not have enough stock`,
+        400,
+      );
+    }
+
+    totalAmount += Number(item.product.price) * item.quantity;
+  }
+
+  // Create order, reduce stock, and clear guest cart in one transaction
+  const order = await prisma.$transaction(async (tx) => {
+    const newOrder = await tx.order.create({
+      data: {
+        userId: null,
+
+        // Guest customer information
+        customerName: fullName,
+        customerPhone: phone,
+        customerEmail: email || null,
+
+        // Shipping address snapshot
+        shippingAddressLine1: addressLine1,
+        shippingAddressLine2: addressLine2 || null,
+        shippingCity: city,
+        shippingState: state || null,
+        shippingPostalCode: postalCode,
+        shippingCountry: country,
+
+        // COD
+        paymentMethod: "COD",
+        paymentStatus: "PENDING",
+
+        totalAmount,
+
+        items: {
+          create: guestCart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        },
+      },
+
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    // Reduce stock
+    for (const item of guestCart.items) {
+      await tx.product.update({
+        where: {
+          id: item.productId,
+        },
+        data: {
+          stock: {
+            decrement: item.quantity,
+          },
+        },
+      });
+    }
+
+    // Clear the guest cart now that the order has been placed
+    await tx.guestCartItem.deleteMany({
+      where: {
+        cartId: guestCartId,
+      },
+    });
+
+    logger.info("Guest Order Created Successfully..");
+    return newOrder;
+  });
+
+  return order;
+}
+
+// Logged-in Users
 async function createOrder(userId, addressId) {
   logger.info("Create Order Endpoint Hit..");
+
+  // Get user info to snapshot onto the order (customerName/customerPhone are required)
+  const user = await prisma.user.findUnique({
+    where: {
+      id: Number(userId),
+    },
+    select: {
+      name: true,
+      phone: true,
+      email: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
   // Get user's shipping address
   const address = await prisma.address.findFirst({
     where: {
@@ -58,6 +204,11 @@ async function createOrder(userId, addressId) {
     const newOrder = await tx.order.create({
       data: {
         userId: Number(userId),
+
+        // Snapshot customer info at the time of order
+        customerName: user.name,
+        customerPhone: user.phone,
+        customerEmail: user.email,
 
         totalAmount,
 
@@ -236,7 +387,7 @@ async function cancelOrder(userId, orderId) {
   // }
 }
 
-// For Admin
+// For Admin  *************************************************************
 
 async function getAllOrders() {
   logger.info("Get All Orders Admin Side Endpoint Hit..");
@@ -377,6 +528,7 @@ const returnOrder = async (orderId) => {
 };
 
 module.exports = {
+  createGuestOrder,
   createOrder,
   getMyOrders,
   getOrderById,

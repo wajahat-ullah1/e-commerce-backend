@@ -51,11 +51,12 @@ model User {
   profileImagePublicId String?
   tokenVersion         Int     @default(0)
 
-  cart      Cart?
-  orders    Order[]
-  reviews   Review[]
-  addresses Address[]
-  wishlist  WishlistItem[]
+  cart          Cart?
+  orders        Order[]
+  reviews       Review[]
+  addresses     Address[]
+  wishlist      WishlistItem[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -101,10 +102,11 @@ model Product {
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id])
 
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  reviews    Review[]
-  wishlist   WishlistItem[]
+  cartItems      CartItem[]
+  guestCartItems GuestCartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+  wishlist       WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,11 +151,34 @@ model WishlistItem {
   @@unique([userId, productId])
 }
 
+model GuestCart {
+  id        String          @id @default(uuid())
+  items     GuestCartItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model GuestCartItem {
+  id        Int    @id @default(autoincrement())
+  cartId    String
+  productId Int
+  quantity  Int    @default(1)
+
+  cart    GuestCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product   @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+}
+
 model Order {
   id Int @id @default(autoincrement())
 
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  customerName  String
+  customerPhone String
+  customerEmail String?
 
   status      OrderStatus @default(PENDING)
   totalAmount Decimal     @db.Decimal(10, 2)
@@ -203,4 +228,16 @@ model Review {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, productId])
+}
+
+model Notification {
+  id      Int     @id @default(autoincrement())
+  userId  Int
+  title   String
+  message String
+  isRead  Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }

@@ -1,6 +1,16 @@
 const orderService = require("../services/orderService");
 const asyncHandler = require("../utils/asyncHandler");
 
+const guestCheckout = asyncHandler(async (req, res) => {
+  const order = await orderService.createGuestOrder(req.body);
+
+  res.status(201).json({
+    success: true,
+    message: "Guest order created successfully",
+    order,
+  });
+});
+
 const checkout = asyncHandler(async (req, res) => {
   const { addressId } = req.body;
 
@@ -42,6 +52,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  guestCheckout,
   checkout,
   getMyOrders,
   getOrderById,

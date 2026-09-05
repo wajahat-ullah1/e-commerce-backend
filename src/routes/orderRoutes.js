@@ -5,7 +5,10 @@ const authenticate = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// All order routes require login
+// Public guest checkout
+router.post("/guest-checkout", orderController.guestCheckout);
+
+// Protected routes
 router.use(authenticate);
 
 // Checkout
