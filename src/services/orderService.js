@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
 const notificationService = require("./notificationService");
+const emailService = require("./emailService");
 
 //For Customers **********************************************************
 
@@ -134,6 +135,9 @@ async function createGuestOrder(data) {
     "Order Placed",
     `Your order #${order.id} has been placed successfully.`,
   );
+
+  // Send confirmation email after successful order creation
+  await emailService.sendOrderConfirmationEmail(order);
 
   return order;
 }
@@ -275,6 +279,9 @@ async function createOrder(userId, addressId) {
     "Order Placed",
     `Your order #${order.id} has been placed successfully.`,
   );
+
+  // Send confirmation email after successful order creation
+  await emailService.sendOrderConfirmationEmail(order);
 
   logger.info("Order Create Successfully..");
   return order;
@@ -462,7 +469,16 @@ async function updateOrderStatus(orderId, status) {
     data: {
       status,
     },
+    include: {
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
   });
+
+  await emailService.sendOrderStatusEmail(updatedOrder);
 
   const notification = await notificationService.getOrderNotification(
     status,
@@ -479,11 +495,6 @@ async function updateOrderStatus(orderId, status) {
 
   logger.info("Order Status Updated Successfully..");
   return updatedOrder;
-  // try {
-  // } catch (error) {
-  //   logger.error("Udpdating Orders on Admin Side Error:", error.message);
-  //   throw error;
-  // }
 }
 
 const returnOrder = async (orderId) => {

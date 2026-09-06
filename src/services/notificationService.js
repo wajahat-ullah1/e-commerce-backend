@@ -48,6 +48,12 @@ const getOrderNotification = (status, orderId) => {
         title: "Order Shipped",
         message: `Your order #${orderId} has been shipped.`,
       };
+    
+    case "IN_TRANSIT":
+      return {
+        title: "Order In Transit",
+        message: `Your order #${orderId} is currently in transit.`,
+      };
 
     case "DELIVERED":
       return {
