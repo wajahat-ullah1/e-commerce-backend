@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
+const notificationService = require("./notificationService");
 
 //For Customers **********************************************************
 
@@ -128,6 +129,11 @@ async function createGuestOrder(data) {
     logger.info("Guest Order Created Successfully..");
     return newOrder;
   });
+  await notificationService.createNotification(
+    userId,
+    "Order Placed",
+    `Your order #${order.id} has been placed successfully.`,
+  );
 
   return order;
 }
@@ -264,13 +270,14 @@ async function createOrder(userId, addressId) {
     return newOrder;
   });
 
+  await notificationService.createNotification(
+    userId,
+    "Order Placed",
+    `Your order #${order.id} has been placed successfully.`,
+  );
+
   logger.info("Order Create Successfully..");
   return order;
-  // try {
-  // } catch (error) {
-  //   logger.error("Creating Order Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function getMyOrders(userId) {
@@ -456,6 +463,19 @@ async function updateOrderStatus(orderId, status) {
       status,
     },
   });
+
+  const notification = await notificationService.getOrderNotification(
+    status,
+    updatedOrder.id,
+  );
+
+  if (notification) {
+    await notificationService.createNotification(
+      updatedOrder.userId,
+      notification.title,
+      notification.message,
+    );
+  }
 
   logger.info("Order Status Updated Successfully..");
   return updatedOrder;

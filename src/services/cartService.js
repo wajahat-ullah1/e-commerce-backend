@@ -178,9 +178,67 @@ async function removeFromCart(userId, productId) {
   // }
 }
 
+// Merge a guest cart into a user's cart. Accepts an optional Prisma
+// transaction client (tx) so callers (e.g. registerFromGuestOrder, or the
+// future login-merge flow) can run this as part of a larger transaction.
+// If no client is passed, it runs against the default prisma client.
+async function mergeGuestCartIntoUserCart(guestCartId, userId, client = prisma) {
+  if (!guestCartId) return;
+
+  const guestCartItems = await client.guestCartItem.findMany({
+    where: {
+      cartId: guestCartId,
+    },
+  });
+
+  if (guestCartItems.length === 0) return;
+
+  // Get or create the user's cart
+  const cart = await client.cart.upsert({
+    where: {
+      userId: Number(userId),
+    },
+    update: {},
+    create: {
+      userId: Number(userId),
+    },
+  });
+
+  for (const item of guestCartItems) {
+    await client.cartItem.upsert({
+      where: {
+        cartId_productId: {
+          cartId: cart.id,
+          productId: item.productId,
+        },
+      },
+      update: {
+        quantity: {
+          increment: item.quantity,
+        },
+      },
+      create: {
+        cartId: cart.id,
+        productId: item.productId,
+        quantity: item.quantity,
+      },
+    });
+  }
+
+  // Clear the guest cart now that it has been merged
+  await client.guestCartItem.deleteMany({
+    where: {
+      cartId: guestCartId,
+    },
+  });
+
+  logger.info("Guest Cart Merged Into User Cart Successfully..");
+}
+
 module.exports = {
   addToCart,
   getCart,
   updateCartItem,
   removeFromCart,
+  mergeGuestCartIntoUserCart,
 };

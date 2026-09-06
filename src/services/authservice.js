@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
+const cartService = require("./cartService");
 
 async function registerUser({ name, email, phone, password }) {
   logger.info("Register User Endpoint Hit..");
@@ -80,7 +81,93 @@ async function loginUser({ email, password }) {
   // }
 }
 
+// Create an account for a guest who just checked out, using the contact
+// info already collected on their order, then link past guest orders and
+// merge any leftover guest cart into the new account.
+async function registerFromGuestOrder({ orderId, guestCartId, password }) {
+  logger.info("Register From Guest Order Endpoint Hit..");
+
+  // Pull contact info from the guest order they just placed
+  const order = await prisma.order.findUnique({
+    where: {
+      id: Number(orderId),
+    },
+  });
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  if (order.userId) {
+    throw new AppError("This order is already linked to an account", 400);
+  }
+
+  if (!order.customerEmail) {
+    throw new AppError(
+      "An email is required to create an account. Please provide one at checkout.",
+      400,
+    );
+  }
+
+  // Make sure no account already exists with this email
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: order.customerEmail,
+    },
+  });
+
+  if (existingUser) {
+    throw new AppError(
+      "An account with this email already exists. Please log in instead.",
+      409,
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const user = await prisma.$transaction(async (tx) => {
+    // Create the account using info already collected at guest checkout
+    const newUser = await tx.user.create({
+      data: {
+        name: order.customerName,
+        email: order.customerEmail,
+        phone: order.customerPhone,
+        password: hashedPassword,
+        role: "CUSTOMER",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    // Backfill every past guest order placed with this email, not just this one
+    await tx.order.updateMany({
+      where: {
+        userId: null,
+        customerEmail: order.customerEmail,
+      },
+      data: {
+        userId: newUser.id,
+      },
+    });
+
+    // Merge any leftover guest cart items into the new user's cart
+    await cartService.mergeGuestCartIntoUserCart(guestCartId, newUser.id, tx);
+
+    return newUser;
+  });
+
+  logger.info("Account Created From Guest Order Successfully..");
+  return user;
+}
+
 module.exports = {
   registerUser,
   loginUser,
+  registerFromGuestOrder,
 };
