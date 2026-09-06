@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const logger = require("../utils/logger");
-const { orderConfirmationEmail, orderStatusEmail } = require("../templates/emailTemplates");
+const {
+  orderConfirmationEmail,
+  orderStatusEmail,
+  passwordResetEmail,
+} = require("../templates/emailTemplates");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -64,8 +68,19 @@ async function sendOrderStatusEmail(order) {
   });
 }
 
+async function sendPasswordResetEmail(email, resetToken) {
+  const emailContent = passwordResetEmail(resetToken);
+
+  return sendEmail({
+    to: email,
+    subject: emailContent.subject,
+    html: emailContent.html,
+  });
+}
+
 module.exports = {
   sendEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
+  sendPasswordResetEmail,
 };

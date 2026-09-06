@@ -1,8 +1,10 @@
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
 const cartService = require("./cartService");
+const emailService = require("./emailService");
 
 async function registerUser({ name, email, phone, password }) {
   logger.info("Register User Endpoint Hit..");
@@ -79,6 +81,72 @@ async function loginUser({ email, password }) {
   //   logger.error("Login User Error:", error.message);
   //   throw error;
   // }
+}
+
+async function forgotPassword(email) {
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  // Don't reveal whether the email exists
+  if (!user) {
+    return;
+  }
+
+  // Generate random token
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // Token expires in 15 minutes
+  const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetTokenExpires,
+    },
+  });
+
+  await emailService.sendPasswordResetEmail(user.email, resetToken);
+}
+
+async function resetPassword(token, newPassword) {
+  const user = await prisma.user.findFirst({
+    where: {
+      resetPasswordToken: token,
+      resetPasswordExpires: {
+        gt: new Date(),
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError("Invalid or expired password reset token", 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      password: hashedPassword,
+
+      // Invalidate existing JWTs
+      tokenVersion: {
+        increment: 1,
+      },
+
+      // Token can only be used once
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    },
+  });
 }
 
 // Create an account for a guest who just checked out, using the contact
@@ -170,4 +238,6 @@ module.exports = {
   registerUser,
   loginUser,
   registerFromGuestOrder,
+  forgotPassword,
+  resetPassword,
 };

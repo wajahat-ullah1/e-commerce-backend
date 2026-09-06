@@ -143,7 +143,55 @@ function orderStatusEmail(order) {
   };
 }
 
+function passwordResetEmail(resetToken) {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+  return {
+    subject: "Reset Your Password",
+
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+
+        <h2>Password Reset Request</h2>
+
+        <p>
+          We received a request to reset your password.
+        </p>
+
+        <p>
+          Click the button below to create a new password.
+        </p>
+
+        <a
+          href="${resetUrl}"
+          style="
+            display: inline-block;
+            padding: 12px 20px;
+            background: #000;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+          "
+        >
+          Reset Password
+        </a>
+
+        <p>
+          This link will expire in 15 minutes.
+        </p>
+
+        <p>
+          If you did not request a password reset, you can safely ignore
+          this email.
+        </p>
+
+      </div>
+    `,
+  };
+}
+
 module.exports = {
   orderConfirmationEmail,
   orderStatusEmail,
+  passwordResetEmail,
 };

@@ -51,6 +51,28 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  await authService.forgotPassword(req.body.email);
+
+  res.status(200).json({
+    success: true,
+    message:
+      "If an account exists with this email, a password reset link has been sent.",
+  });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  await authService.resetPassword(token, password);
+
+  res.status(200).json({
+    success: true,
+    message: "Password reset successfully",
+  });
+});
+
 const registerFromGuestOrder = asyncHandler(async (req, res) => {
   const { orderId, guestCartId, password } = req.body;
 
@@ -80,5 +102,7 @@ const registerFromGuestOrder = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  forgotPassword,
+  resetPassword,
   registerFromGuestOrder,
 };
