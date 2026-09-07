@@ -9,4 +9,6 @@ router.use(authenticate);
 
 router.get("/:id", invoiceController.getMyInvoice);
 
+router.get("/:id/pdf", invoiceController.downloadMyInvoice);
+
 module.exports = router;

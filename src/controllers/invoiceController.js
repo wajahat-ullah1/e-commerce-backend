@@ -1,5 +1,6 @@
 const invoiceService = require("../services/invoiceService");
 const asyncHandler = require("../utils/asyncHandler");
+const invoicePdfService = require("../services/invoicePdfService");
 
 const getMyInvoice = asyncHandler(async (req, res, next) => {
   const invoice = await invoiceService.getMyInvoice(req.user.id, req.params.id);
@@ -28,8 +29,15 @@ const getAllInvoices = asyncHandler(async (req, res, next) => {
   });
 });
 
+const downloadMyInvoice = asyncHandler(async (req, res) => {
+  const invoice = await invoiceService.getMyInvoice(req.user.id, req.params.id);
+
+  invoicePdfService.generateInvoicePdf(invoice, res);
+});
+
 module.exports = {
   getMyInvoice,
   getInvoiceById,
   getAllInvoices,
+  downloadMyInvoice,
 };
