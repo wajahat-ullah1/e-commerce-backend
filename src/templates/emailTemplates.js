@@ -20,7 +20,7 @@ function orderConfirmationEmail(order) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
 
-      <h2>Order Confirmed 🎉</h2>
+      <h2>Order Confirmed</h2>
 
       <p>Hello ${order.customerName},</p>
 
@@ -58,6 +58,13 @@ function orderConfirmationEmail(order) {
 
       <p>
         Thank you for shopping with us!
+      </p>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+
+      <p style="font-size: 12px; color: #888;">
+        This is a transactional email regarding your order at ${process.env.STORE_NAME || "our store"}.
+        If you have any questions, reply to this email or contact us at ${process.env.EMAIL_REPLY_TO || process.env.EMAIL_USER}.
       </p>
 
     </div>
@@ -136,6 +143,13 @@ function orderStatusEmail(order) {
 
         <p>
           Thank you for shopping with us!
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+
+        <p style="font-size: 12px; color: #888;">
+          This is a transactional email regarding your order at ${process.env.STORE_NAME || "our store"}.
+          If you have any questions, reply to this email or contact us at ${process.env.EMAIL_REPLY_TO || process.env.EMAIL_USER}.
         </p>
 
       </div>

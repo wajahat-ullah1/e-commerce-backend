@@ -3,6 +3,7 @@ const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
 const notificationService = require("./notificationService");
 const emailService = require("./emailService");
+const inventoryService = require("./inventoryService");
 
 //For Customers **********************************************************
 
@@ -108,15 +109,31 @@ async function createGuestOrder(data) {
 
     // Reduce stock
     for (const item of guestCart.items) {
+      const product = await tx.product.findUnique({
+        where: {
+          id: item.productId,
+        },
+      });
+
+      const previousStock = product.stock;
+      const newStock = previousStock - item.quantity;
+
       await tx.product.update({
         where: {
           id: item.productId,
         },
         data: {
-          stock: {
-            decrement: item.quantity,
-          },
+          stock: newStock,
         },
+      });
+
+      await inventoryService.recordInventoryHistory(tx, {
+        productId: item.productId,
+        previousStock,
+        newStock,
+        quantity: -item.quantity,
+        action: "SALE",
+        reason: `Guest Order #${newOrder.id}`,
       });
     }
 
@@ -250,17 +267,27 @@ async function createOrder(userId, addressId) {
       },
     });
 
-    // Reduce product stock
+    // Update product stock
     for (const item of cart.items) {
+      const previousStock = item.product.stock;
+      const newStock = previousStock - item.quantity;
+
       await tx.product.update({
         where: {
           id: item.productId,
         },
         data: {
-          stock: {
-            decrement: item.quantity,
-          },
+          stock: newStock,
         },
+      });
+
+      await inventoryService.recordInventoryHistory(tx, {
+        productId: item.productId,
+        previousStock,
+        newStock,
+        quantity: -item.quantity,
+        action: "SALE",
+        reason: `Order #${newOrder.id}`,
       });
     }
 
@@ -367,15 +394,31 @@ async function cancelOrder(userId, orderId) {
   const cancelledOrder = await prisma.$transaction(async (tx) => {
     // Restore stock
     for (const item of order.items) {
+      const product = await tx.product.findUnique({
+        where: {
+          id: item.productId,
+        },
+      });
+
+      const previousStock = product.stock;
+      const newStock = previousStock + item.quantity;
+
       await tx.product.update({
         where: {
           id: item.productId,
         },
         data: {
-          stock: {
-            increment: item.quantity,
-          },
+          stock: newStock,
         },
+      });
+
+      await inventoryService.recordInventoryHistory(tx, {
+        productId: item.productId,
+        previousStock,
+        newStock,
+        quantity: item.quantity,
+        action: "CANCELLATION",
+        reason: `Order #${order.id}`,
       });
     }
 
@@ -523,15 +566,31 @@ const returnOrder = async (orderId) => {
   const returnedOrder = await prisma.$transaction(async (tx) => {
     // Restore stock
     for (const item of order.items) {
+      const product = await tx.product.findUnique({
+        where: {
+          id: item.productId,
+        },
+      });
+
+      const previousStock = product.stock;
+      const newStock = previousStock + item.quantity;
+
       await tx.product.update({
         where: {
           id: item.productId,
         },
         data: {
-          stock: {
-            increment: item.quantity,
-          },
+          stock: newStock,
         },
+      });
+
+      await inventoryService.recordInventoryHistory(tx, {
+        productId: item.productId,
+        previousStock,
+        newStock,
+        quantity: item.quantity,
+        action: "RETURN",
+        reason: `Order #${order.id}`,
       });
     }
 
