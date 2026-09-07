@@ -218,7 +218,8 @@ model Order {
   paymentMethod PaymentMethod @default(COD)
   paymentStatus PaymentStatus @default(PENDING)
 
-  items OrderItem[]
+  items   OrderItem[]
+  invoice Invoice?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -235,6 +236,16 @@ model OrderItem {
 
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  invoiceNumber String   @unique
+  orderId       Int      @unique
+  totalAmount   Decimal  @db.Decimal(10, 2)
+  issuedAt      DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model Review {

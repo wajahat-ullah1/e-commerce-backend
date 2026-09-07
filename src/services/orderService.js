@@ -107,6 +107,18 @@ async function createGuestOrder(data) {
       },
     });
 
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(
+      newOrder.id,
+    ).padStart(6, "0")}`;
+
+    await tx.invoice.create({
+      data: {
+        invoiceNumber,
+        orderId: newOrder.id,
+        totalAmount: newOrder.totalAmount,
+      },
+    });
+
     // Reduce stock
     for (const item of guestCart.items) {
       const product = await tx.product.findUnique({
@@ -156,7 +168,16 @@ async function createGuestOrder(data) {
   // Send confirmation email after successful order creation
   await emailService.sendOrderConfirmationEmail(order);
 
-  return order;
+  const invoice = await prisma.invoice.findUnique({
+    where: {
+      orderId: order.id,
+    },
+  });
+
+  return {
+    ...order,
+    invoice,
+  };
 }
 
 // Logged-in Users
@@ -267,6 +288,19 @@ async function createOrder(userId, addressId) {
       },
     });
 
+    // Create invoice
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(
+      newOrder.id,
+    ).padStart(6, "0")}`;
+
+    await tx.invoice.create({
+      data: {
+        invoiceNumber,
+        orderId: newOrder.id,
+        totalAmount: newOrder.totalAmount,
+      },
+    });
+
     // Update product stock
     for (const item of cart.items) {
       const previousStock = item.product.stock;
@@ -310,8 +344,17 @@ async function createOrder(userId, addressId) {
   // Send confirmation email after successful order creation
   await emailService.sendOrderConfirmationEmail(order);
 
+  const invoice = await prisma.invoice.findUnique({
+    where: {
+      orderId: order.id,
+    },
+  });
+
   logger.info("Order Create Successfully..");
-  return order;
+  return {
+    ...order,
+    invoice,
+  };
 }
 
 async function getMyOrders(userId) {
