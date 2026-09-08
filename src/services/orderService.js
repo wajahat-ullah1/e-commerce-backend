@@ -174,6 +174,8 @@ async function createGuestOrder(data) {
     },
   });
 
+  await emailService.sendInvoiceEmail(invoice);
+
   return {
     ...order,
     invoice,
@@ -342,13 +344,27 @@ async function createOrder(userId, addressId) {
   );
 
   // Send confirmation email after successful order creation
-  await emailService.sendOrderConfirmationEmail(order);
-
   const invoice = await prisma.invoice.findUnique({
     where: {
       orderId: order.id,
     },
+    include: {
+      order: {
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      },
+    },
   });
+
+  // One email: order confirmation with the invoice PDF attached
+  await emailService.sendOrderConfirmationEmail(order, invoice);
+
+  // await emailService.sendInvoiceEmail(invoice);
 
   logger.info("Order Create Successfully..");
   return {

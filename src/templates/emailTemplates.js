@@ -1,4 +1,6 @@
-function orderConfirmationEmail(order) {
+
+
+function orderConfirmationEmail(order, invoice) {
   const itemsHtml = order.items
     .map(
       (item) => `
@@ -25,10 +27,14 @@ function orderConfirmationEmail(order) {
       <p>Hello ${order.customerName},</p>
 
       <p>
-        Thank you for your order. Your order has been successfully placed.
+        Thank you for your order. Your order <strong>#${order.id}</strong> has been successfully placed.
       </p>
 
-      <h3>Order #${order.id}</h3>
+      ${
+        invoice
+          ? `<p>Your invoice <strong>${invoice.invoiceNumber}</strong> is attached to this email as a PDF.</p>`
+          : ""
+      }
 
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
@@ -49,11 +55,24 @@ function orderConfirmationEmail(order) {
       </h3>
 
       <p>
-        Payment Method: Cash on Delivery
+        Payment Method: ${order.paymentMethod}
       </p>
 
       <p>
         Order Status: ${order.status}
+      </p>
+
+      <h3>Shipping Address</h3>
+
+      <p>
+        ${order.shippingAddressLine1}<br>
+        ${
+          order.shippingAddressLine2
+            ? order.shippingAddressLine2 + "<br>"
+            : ""
+        }
+        ${order.shippingCity}, ${order.shippingState || ""}<br>
+        ${order.shippingPostalCode}, ${order.shippingCountry}
       </p>
 
       <p>

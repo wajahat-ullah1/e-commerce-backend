@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const logger = require("../utils/logger");
+const invoicePdfService = require("./invoicePdfService");
 const {
   orderConfirmationEmail,
   orderStatusEmail,
@@ -26,7 +27,7 @@ function stripHtml(html) {
     .trim();
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, attachments = [] }) {
   if (!to) {
     return null;
   }
@@ -39,6 +40,7 @@ async function sendEmail({ to, subject, html, text }) {
       subject,
       html,
       text: text || stripHtml(html),
+      attachments,
     });
 
     logger.info(`Email sent: ${info.messageId}`);
@@ -52,15 +54,28 @@ async function sendEmail({ to, subject, html, text }) {
   }
 }
 
-async function sendOrderConfirmationEmail(order) {
+async function sendOrderConfirmationEmail(order, invoice) {
   if (!order.customerEmail) {
     return null;
   }
 
+  const attachments = [];
+
+  if (invoice) {
+    const pdfBuffer = await invoicePdfService.generateInvoicePdfBuffer(invoice);
+
+    attachments.push({
+      filename: `${invoice.invoiceNumber}.pdf`,
+      content: pdfBuffer,
+      contentType: "application/pdf",
+    });
+  }
+
   return sendEmail({
     to: order.customerEmail,
-    subject: `Order Confirmation #${order.id}`,
-    html: orderConfirmationEmail(order),
+    subject: `Order Confirmed - Order #${order.id}`,
+    html: orderConfirmationEmail(order, invoice),
+    attachments,
   });
 }
 
@@ -92,9 +107,50 @@ async function sendPasswordResetEmail(email, resetToken) {
   });
 }
 
+async function sendInvoiceEmail(invoice) {
+  if (!invoice.order.customerEmail) {
+    return null;
+  }
+
+  const pdfBuffer = await invoicePdfService.generateInvoicePdfBuffer(invoice);
+
+  return sendEmail({
+    to: invoice.order.customerEmail,
+
+    subject: `Invoice ${invoice.invoiceNumber}`,
+
+    html: `
+      <h2>Thank you for your order!</h2>
+
+      <p>
+        Your invoice <strong>${invoice.invoiceNumber}</strong>
+        is attached to this email.
+      </p>
+
+      <p>
+        Total Amount:
+        <strong>Rs. ${Number(invoice.totalAmount).toFixed(2)}</strong>
+      </p>
+
+      <p>
+        Thank you for shopping with us!
+      </p>
+    `,
+
+    attachments: [
+      {
+        filename: `${invoice.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+}
+
 module.exports = {
   sendEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendPasswordResetEmail,
+  sendInvoiceEmail,
 };

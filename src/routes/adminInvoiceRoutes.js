@@ -12,4 +12,6 @@ router.get("/", invoiceController.getAllInvoices);
 
 router.get("/:id", invoiceController.getInvoiceById);
 
+router.get("/:id/pdf", invoiceController.downloadAdminInvoice);
+
 module.exports = router;

@@ -35,9 +35,16 @@ const downloadMyInvoice = asyncHandler(async (req, res) => {
   invoicePdfService.generateInvoicePdf(invoice, res);
 });
 
+const downloadAdminInvoice = asyncHandler(async (req, res) => {
+  const invoice = await invoiceService.getInvoiceById(req.params.id);
+
+  invoicePdfService.generateInvoicePdf(invoice, res);
+});
+
 module.exports = {
   getMyInvoice,
   getInvoiceById,
   getAllInvoices,
+  downloadAdminInvoice,
   downloadMyInvoice,
 };
