@@ -8,10 +8,10 @@ const router = express.Router();
 
 router.use(authenticate, authorize("ADMIN"));
 
-router.get("/", invoiceController.getAllInvoices);
+router.get("/admin", invoiceController.getAllInvoices);
 
-router.get("/:id", invoiceController.getInvoiceById);
+router.get("/admin/:id", invoiceController.getInvoiceById);
 
-router.get("/:id/pdf", invoiceController.downloadAdminInvoice);
+router.get("/admin/:id/pdf", invoiceController.downloadAdminInvoice);
 
 module.exports = router;

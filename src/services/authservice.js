@@ -84,6 +84,7 @@ async function loginUser({ email, password }) {
 }
 
 async function forgotPassword(email) {
+  logger.info("Forgote Password Endpoint Hit..");
   const user = await prisma.user.findUnique({
     where: {
       email,
@@ -111,10 +112,12 @@ async function forgotPassword(email) {
     },
   });
 
+  logger.info("Forget Password Email sent");
   await emailService.sendPasswordResetEmail(user.email, resetToken);
 }
 
 async function resetPassword(token, newPassword) {
+  logger.info("Reset Password Endpoint Hit..");
   const user = await prisma.user.findFirst({
     where: {
       resetPasswordToken: token,
@@ -147,6 +150,7 @@ async function resetPassword(token, newPassword) {
       resetPasswordExpires: null,
     },
   });
+  logger.info("Password Reset Successfully..")
 }
 
 // Create an account for a guest who just checked out, using the contact

@@ -159,22 +159,27 @@ async function createGuestOrder(data) {
     logger.info("Guest Order Created Successfully..");
     return newOrder;
   });
-  await notificationService.createNotification(
-    userId,
-    "Order Placed",
-    `Your order #${order.id} has been placed successfully.`,
-  );
 
   // Send confirmation email after successful order creation
-  await emailService.sendOrderConfirmationEmail(order);
-
   const invoice = await prisma.invoice.findUnique({
     where: {
       orderId: order.id,
     },
+    include: {
+      order: {
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      },
+    },
   });
 
-  await emailService.sendInvoiceEmail(invoice);
+  // One email: order confirmation with the invoice PDF attached
+  await emailService.sendOrderConfirmationEmail(order, invoice);
 
   return {
     ...order,
