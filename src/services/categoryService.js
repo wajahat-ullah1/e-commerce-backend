@@ -23,11 +23,6 @@ async function createCategory(name) {
 
   logger.info("Category Created Successfully..");
   return category;
-  // try {
-  // } catch (error) {
-  //   logger.error("Creating Category Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function getCategories() {
@@ -36,14 +31,14 @@ async function getCategories() {
     orderBy: {
       createdAt: "desc",
     },
+    include: {
+    _count: {
+      select: { products: true },
+    },
+  },
   });
   logger.info("Categories Fetched Successfully..");
   return categories;
-  // try {
-  // } catch (error) {
-  //   logger.error("Fetching Category Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function updateCategory(id, name) {

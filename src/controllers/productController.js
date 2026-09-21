@@ -44,21 +44,21 @@ async function createProduct(req, res) {
 }
 
 const getProducts = asyncHandler(async (req, res) => {
-    const result = await productService.getProducts(req.query);
+  const result = await productService.getProducts(req.query);
 
-    res.status(200).json({
-      success: true,
-      ...result,
-    });
+  res.status(200).json({
+    success: true,
+    ...result,
+  });
 });
 
 const getProductById = asyncHandler(async (req, res) => {
-    const product = await productService.getProductById(req.params.id);
+  const product = await productService.getProductById(req.params.id);
 
-    res.status(200).json({
-      success: true,
-      product,
-    }); 
+  res.status(200).json({
+    success: true,
+    product,
+  });
 });
 
 async function updateProduct(req, res) {
@@ -110,21 +110,35 @@ async function updateProduct(req, res) {
 }
 
 const deleteProduct = asyncHandler(async (req, res) => {
-    // Find the product first
-    const product = await productService.getProductById(req.params.id);
+  // Find the product first
+  const product = await productService.getProductById(req.params.id);
 
-    // Delete image from Cloudinary
-    if (product.imagePublicId) {
-      await uploadService.deleteImage(product.imagePublicId);
-    }
-
-    // Delete product from database
+  // Delete product from database
+  try {
     await productService.deleteProduct(req.params.id);
+  } catch (error) {
+    if (
+      error.message?.includes("foreign key constraint") ||
+      error.message?.includes("RESTRICT")
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This product can't be deleted because it has existing orders.",
+      });
+    }
+    throw error;
+  }
 
-    res.status(200).json({
-      success: true,
-      message: "Product and image deleted successfully",
-    });
+  // Delete image from Cloudinary
+  if (product.imagePublicId) {
+    await uploadService.deleteImage(product.imagePublicId);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Product and image deleted successfully",
+  });
 });
 
 module.exports = {

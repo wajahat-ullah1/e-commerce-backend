@@ -61,7 +61,9 @@ async function getAllInvoices() {
         select: {
           id: true,
           customerName: true,
+          customerPhone:true,
           customerEmail: true,
+          shippingAddressLine1: true,
           totalAmount: true,
           status: true,
           createdAt: true,

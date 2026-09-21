@@ -1,5 +1,15 @@
+const adminService = require("../services/adminService");
 const orderService = require("../services/orderService");
 const asyncHandler = require("../utils/asyncHandler");
+
+async function getAllCustomers(req, res) {
+  const customers = await adminService.getAllCustomers();
+
+  res.status(200).json({
+    success: true,
+    data: customers,
+  });
+}
 
 const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await orderService.getAllOrders();
@@ -36,6 +46,7 @@ const returnOrder = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getAllCustomers,
   getAllOrders,
   updateOrderStatus,
   returnOrder,

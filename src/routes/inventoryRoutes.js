@@ -17,8 +17,11 @@ router.get("/stats", inventoryController.getInventoryStats);
 // Get low-stock products
 router.get("/low-stock", inventoryController.getLowStockProducts);
 
+// Get All Inventory History
+router.get("/history", inventoryController.getAllInventoryHistory);
+
 // Get history of a product
-router.get("/:productId/history", inventoryController.getInventoryHistory);
+router.get("/history/:productId", inventoryController.getInventoryHistory);
 
 // Update product stock
 router.put("/:productId/stock", inventoryController.updateStock);

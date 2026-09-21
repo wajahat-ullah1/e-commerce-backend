@@ -45,12 +45,26 @@ async function registerUser({ name, email, phone, password }) {
 
   logger.info("User Registered Successfully..");
 
+  // Notify admin about new customer
+  const admins = await prisma.user.findMany({
+    where: {
+      role: "ADMIN",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  await prisma.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      title: "New Customer Registration",
+      message: `${user.name} has registered as a new customer.`,
+      type: "CUSTOMER_REGISTERED",
+    })),
+  });
+
   return user;
-  // try {
-  // } catch (error) {
-  //   logger.error("Register User Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function loginUser({ email, password }) {
@@ -150,7 +164,7 @@ async function resetPassword(token, newPassword) {
       resetPasswordExpires: null,
     },
   });
-  logger.info("Password Reset Successfully..")
+  logger.info("Password Reset Successfully..");
 }
 
 // Create an account for a guest who just checked out, using the contact

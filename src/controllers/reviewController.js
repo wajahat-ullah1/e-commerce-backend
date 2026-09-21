@@ -19,6 +19,14 @@ const createReview = asyncHandler(async (req, res) => {
   });
 });
 
+const getAllReviews = asyncHandler(async (req, res) => {
+  const reviews = await reviewService.getAllReviews();
+  res.status(200).json({
+    success: true,
+    reviews,
+  });
+});
+
 const getProductReviews = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
@@ -41,8 +49,18 @@ const getProductRating = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteReview = asyncHandler(async (req, res) => {
+  await reviewService.deleteReview(req.params.id);
+  res.status(200).json({
+    success: true,
+    message: "Review deleted successfully",
+  });
+});
+
 module.exports = {
   createReview,
+  getAllReviews,
   getProductReviews,
-  getProductRating
+  getProductRating,
+  deleteReview,
 };

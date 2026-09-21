@@ -346,6 +346,13 @@ async function createOrder(userId, addressId) {
     userId,
     "Order Placed",
     `Your order #${order.id} has been placed successfully.`,
+    "order",
+  );
+
+  await notificationService.createAdminNotification(
+    "New Order Received",
+    `A new order #${order.id} has been placed by ${user.name}.`,
+    "order",
   );
 
   // Send confirmation email after successful order creation
@@ -493,19 +500,20 @@ async function cancelOrder(userId, orderId) {
       },
       data: {
         status: "CANCELLED",
+        paymentStatus: "FAILED",
       },
     });
 
     return updatedOrder;
   });
+  await notificationService.createAdminNotification(
+    "Order Cancelled",
+    `Customer ${order.customerName} has cancelled order #${order.id}.`,
+  );
+
   logger.info("Order Cancelled Successfully..");
 
   return cancelledOrder;
-  // try {
-  // } catch (error) {
-  //   logger.error("Cancling Order Error:", error.message);
-  //   throw error;
-  // }
 }
 
 // For Admin  *************************************************************
@@ -534,12 +542,17 @@ async function getAllOrders() {
   });
   logger.info("Orders Fetched Successfully on Admin Side");
   return orders;
-  // try {
-  // } catch (error) {
-  //   logger.error("Getting Orders on Admin Side Error:", error.message);
-  //   throw error;
-  // }
 }
+
+const paymentStatusByOrderStatus = {
+  PENDING: "PENDING",
+  PROCESSING: "PENDING",
+  SHIPPED: "PENDING",
+  IN_TRANSIT: "PENDING",
+  DELIVERED: "PAID",
+  RETURNED: "FAILED",
+  CANCELLED: "FAILED",
+};
 
 async function updateOrderStatus(orderId, status) {
   logger.info("Updating Order Status Endpoint Hit..");
@@ -557,8 +570,9 @@ async function updateOrderStatus(orderId, status) {
     PENDING: ["PROCESSING"],
     PROCESSING: ["SHIPPED"],
     SHIPPED: ["IN_TRANSIT"],
-    IN_TRANSIT: ["DELIVERED"],
+    IN_TRANSIT: ["DELIVERED", "RETURNED"],
     DELIVERED: [],
+    RETURNED: [],
     CANCELLED: [],
   };
 
@@ -569,12 +583,25 @@ async function updateOrderStatus(orderId, status) {
     );
   }
 
+  // Automatically determine payment status
+  const paymentStatus = paymentStatusByOrderStatus[status];
+  console.log("Received order status:", status);
+  console.log("Calculated payment status:", paymentStatusByOrderStatus[status]);
+
+  if (!paymentStatus) {
+    throw new AppError(
+      `No payment status mapping found for order status ${status}`,
+      400,
+    );
+  }
+
   const updatedOrder = await prisma.order.update({
     where: {
       id: Number(orderId),
     },
     data: {
       status,
+      paymentStatus,
     },
     include: {
       items: {
@@ -592,11 +619,12 @@ async function updateOrderStatus(orderId, status) {
     updatedOrder.id,
   );
 
-  if (notification) {
+  if (notification && updatedOrder.userId) {
     await notificationService.createNotification(
       updatedOrder.userId,
       notification.title,
       notification.message,
+      notification.type,
     );
   }
 

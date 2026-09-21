@@ -196,11 +196,6 @@ async function deleteProduct(id) {
 
   logger.info("Product Deleted Successfully..");
   return product;
-  // try {
-  // } catch (error) {
-  //   logger.error("Deleting Products Error:", error.message);
-  //   throw error;
-  // }
 }
 
 module.exports = {

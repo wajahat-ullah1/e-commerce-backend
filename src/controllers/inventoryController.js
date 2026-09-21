@@ -24,6 +24,15 @@ const getInventory = asyncHandler(async (req, res, next) => {
   });
 });
 
+const getAllInventoryHistory = asyncHandler(async (req, res, next) => {
+  const history = await inventoryService.getAllInventoryHistory();
+
+  res.status(200).json({
+    success: true,
+    data: history,
+  });
+});
+
 const getInventoryHistory = asyncHandler(async (req, res, next) => {
   const result = await inventoryService.getInventoryHistory(
     req.params.productId,
@@ -73,6 +82,7 @@ module.exports = {
   updateStock,
   receiveStock,
   getInventory,
+  getAllInventoryHistory,
   getInventoryHistory,
   getLowStockProducts,
   getInventoryStats,

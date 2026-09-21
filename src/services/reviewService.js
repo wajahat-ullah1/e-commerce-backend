@@ -50,19 +50,65 @@ const createReview = async (userId, productId, rating, comment) => {
     throw new AppError("You have already reviewed this product", 409);
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { name: true },
+  });
+
   // 4. Create review
-  const review = await prisma.review.create({
-    data: {
-      userId: Number(userId),
-      productId: Number(productId),
-      rating: Number(rating),
-      comment,
+  const review = await prisma.$transaction(async (tx) => {
+    const newReview = await tx.review.create({
+      data: {
+        userId: Number(userId),
+        productId: Number(productId),
+        rating: Number(rating),
+        comment,
+      },
+    });
+    logger.info(
+      `Review created successfully for product ${productId} by user ${userId}`,
+    );
+
+    const admins = await tx.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+
+    await tx.notification.createMany({
+      data: admins.map((admin) => ({
+        userId: admin.id,
+        title: "New Review",
+        message: `${user.name} has submitted a new review.`,
+        type: "review",
+      })),
+    });
+
+    logger.info(
+      `Review created successfully for product ${productId} by user ${userId}`,
+    );
+    return newReview;
+  });
+
+  return review;
+};
+
+const getAllReviews = async () => {
+  logger.info("Fetching all reviews (admin)");
+  const reviews = await prisma.review.findMany({
+    include: {
+      user: {
+        select: { id: true, name: true },
+      },
+      product: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
-  logger.info(
-    `Review created successfully for product ${productId} by user ${userId}`,
-  );
-  return review;
+  logger.info(`Fetched ${reviews.length} reviews (admin)`);
+  return reviews;
 };
 
 const getProductReviews = async (productId) => {
@@ -98,7 +144,7 @@ const getProductReviews = async (productId) => {
 };
 
 const getProductRating = async (productId) => {
-    logger.info(`Calculating average rating for product ${productId}`);
+  logger.info(`Calculating average rating for product ${productId}`);
   const product = await prisma.product.findUnique({
     where: {
       id: Number(productId),
@@ -120,7 +166,9 @@ const getProductRating = async (productId) => {
       rating: true,
     },
   });
-  logger.info(`Average rating for product ${productId} is ${result._avg.rating}, total reviews: ${result._count.rating}`);
+  logger.info(
+    `Average rating for product ${productId} is ${result._avg.rating}, total reviews: ${result._count.rating}`,
+  );
   return {
     productId: Number(productId),
     averageRating: result._avg.rating
@@ -130,8 +178,28 @@ const getProductRating = async (productId) => {
   };
 };
 
+const deleteReview = async (id) => {
+  logger.info(`Deleting review ${id} (admin)`);
+  const review = await prisma.review.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!review) {
+    throw new AppError("Review not found", 404);
+  }
+
+  await prisma.review.delete({
+    where: { id: Number(id) },
+  });
+
+  logger.info(`Review ${id} deleted successfully (admin)`);
+  return review;
+};
+
 module.exports = {
   createReview,
+  getAllReviews,
   getProductReviews,
   getProductRating,
+  deleteReview,
 };

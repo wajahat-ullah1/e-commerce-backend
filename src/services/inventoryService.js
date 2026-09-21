@@ -1,7 +1,9 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
+const logger = require("../utils/logger");
 
 async function updateStock(productId, newStock, reason) {
+  logger.info("Update Stock EndPoint Hit..");
   const id = Number(productId);
   const stock = Number(newStock);
 
@@ -41,6 +43,9 @@ async function updateStock(productId, newStock, reason) {
         reason: reason || null,
       },
     });
+    logger.info("Stock Updated Successfully..");
+
+    await notifyAdminsAboutStock(tx, updatedProduct, previousStock, stock);
 
     return {
       product: updatedProduct,
@@ -56,6 +61,7 @@ async function getInventory() {
       name: true,
       price: true,
       stock: true,
+      updatedAt: true,
       category: {
         select: {
           id: true,
@@ -65,6 +71,19 @@ async function getInventory() {
     },
     orderBy: {
       stock: "asc",
+    },
+  });
+}
+
+async function getAllInventoryHistory() {
+  return await prisma.inventoryHistory.findMany({
+    include: {
+      product: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 }
@@ -148,6 +167,57 @@ async function recordInventoryHistory(
   });
 }
 
+// Helper function for Admin Notification
+async function notifyAdminsAboutStock(tx, product, previousStock, newStock) {
+  // Out of stock
+  if (newStock === 0 && previousStock > 0) {
+    const admins = await tx.user.findMany({
+      where: {
+        role: "ADMIN",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (admins.length > 0) {
+      await tx.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "Out of Stock",
+          message: `${product.name} is now out of stock.`,
+          type: "stock",
+        })),
+      });
+    }
+
+    return;
+  }
+
+  // Low stock: only notify when crossing from above 5 to 5 or below
+  if (previousStock > 5 && newStock > 0 && newStock <= 5) {
+    const admins = await tx.user.findMany({
+      where: {
+        role: "ADMIN",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (admins.length > 0) {
+      await tx.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "Low Stock Alert",
+          message: `${product.name} is running low on stock. Only ${newStock} items remain.`,
+          type: "stock",
+        })),
+      });
+    }
+  }
+}
+
 async function receiveStock(productId, quantity, reason) {
   const id = Number(productId);
   const amount = Number(quantity);
@@ -225,6 +295,7 @@ module.exports = {
   updateStock,
   receiveStock,
   getInventory,
+  getAllInventoryHistory,
   getInventoryHistory,
   getLowStockProducts,
   getInventoryStats,
