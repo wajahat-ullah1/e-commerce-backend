@@ -1,70 +1,103 @@
 const prisma = require("../config/prisma");
+const inventoryService = require("./inventoryService");
+
+async function getTopProducts(limit = 5) {
+  const rows = await prisma.orderItem.groupBy({
+    by: ["productId", "price"],
+    where: { order: { status: { notIn: ["CANCELLED", "RETURNED"] } } },
+    _sum: { quantity: true },
+  });
+
+  // Combine price groups into one total per product
+  const totals = new Map();
+  for (const row of rows) {
+    const qty = row._sum.quantity || 0;
+    const t = totals.get(row.productId) || {
+      productId: row.productId,
+      unitsSold: 0,
+      revenue: 0,
+    };
+    t.unitsSold += qty;
+    t.revenue += qty * Number(row.price);
+    totals.set(row.productId, t);
+  }
+
+  const top = [...totals.values()]
+    .sort((a, b) => b.unitsSold - a.unitsSold || b.revenue - a.revenue)
+    .slice(0, limit);
+
+  if (top.length === 0) return [];
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: top.map((t) => t.productId) } },
+    include: { category: { select: { name: true } } },
+  });
+
+  return top.flatMap((t) => {
+    const p = products.find((x) => x.id === t.productId);
+    if (!p) return []; // product was deleted
+    return {
+      id: p.id,
+      name: p.name,
+      image: p.image ?? null, // change if your image field is named differently
+      category: p.category?.name ?? "-",
+      stock: p.stock,
+      unitsSold: t.unitsSold,
+      revenue: t.revenue,
+    };
+  });
+}
 
 async function getDashboardStats() {
   const [
-    totalUsers,
+    totalCustomers,
     totalProducts,
     totalOrders,
     pendingOrders,
     recentOrders,
+    lowStockProducts,
+    topProducts,
     revenue,
   ] = await Promise.all([
-    // Total customers
-    prisma.user.count(),
-
-    // Total products
+    prisma.user.count({ where: { role: { not: "ADMIN" } } }),
     prisma.product.count(),
-
-    // Total orders
     prisma.order.count(),
+    prisma.order.count({ where: { status: "PENDING" } }),
 
-    // Pending orders
-    prisma.order.count({
-      where: {
-        status: "PENDING",
-      },
-    }),
-
-    // Recent 5 orders
     prisma.order.findMany({
       take: 5,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+      orderBy: { createdAt: "desc" },
     }),
 
-    // Calculate total revenue
+    inventoryService.getLowStockProducts(),
+    getTopProducts(),
+
     prisma.order.aggregate({
-      _sum: {
-        totalAmount: true,
-      },
-      where: {
-        status: "DELIVERED",
-      },
+      _sum: { totalAmount: true },
+      where: { status: "DELIVERED" },
     }),
   ]);
 
   return {
-    totalUsers,
+    totalCustomers,
     totalProducts,
     totalOrders,
     pendingOrders,
+    totalRevenue: Number(revenue._sum.totalAmount || 0),
 
-    totalRevenue: revenue._sum.totalAmount || 0,
+    lowStock: lowStockProducts.length,
+    lowStockProducts: lowStockProducts.slice(0, 5),
 
-    recentOrders,
+    topProducts,
+
+    recentOrders: recentOrders.map((o) => ({
+      id: o.id,
+      customer: o.customerName,
+      total: Number(o.totalAmount),
+      status: o.status,
+      createdAt: o.createdAt,
+    })),
   };
 }
 
-module.exports = {
-  getDashboardStats,
-};
+module.exports = { getDashboardStats };

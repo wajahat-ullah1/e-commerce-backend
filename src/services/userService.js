@@ -15,6 +15,7 @@ const getMyProfile = async (userId) => {
       email: true,
       phone: true,
       role: true,
+      profileImage: true,
       createdAt: true,
     },
   });
