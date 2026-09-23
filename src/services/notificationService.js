@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
+const notificationEmitter = require("../utils/notificationEmitter");
 const AppError = require("../utils/AppError");
 
 const createNotification = async (userId, title, message, type = null) => {
@@ -148,9 +149,31 @@ const createAdminNotification = async (title, message, type = null) => {
     })),
   });
 
+  admins.forEach((admin) => {
+    notificationEmitter.emit(`user:${admin.id}`, { title, message, type });
+  });
+
   logger.info(`Admin notification created for ${admins.length} admin(s)`);
 
   return notifications;
+};
+
+const deleteNotification = async (userId, notificationId) => {
+  logger.info(`Deleting notification ${notificationId} for user ${userId}`);
+  const notification = await prisma.notification.findFirst({
+    where: { id: Number(notificationId), userId: Number(userId) },
+  });
+
+  if (!notification) {
+    throw new AppError("Notification not found", 404);
+  }
+
+  await prisma.notification.delete({ where: { id: notification.id } });
+};
+
+const clearAllNotifications = async (userId) => {
+  logger.info(`Clearing all notifications for user ${userId}`);
+  await prisma.notification.deleteMany({ where: { userId: Number(userId) } });
 };
 
 module.exports = {
@@ -160,4 +183,6 @@ module.exports = {
   getUnreadCount,
   markAsRead,
   createAdminNotification,
+  deleteNotification,
+  clearAllNotifications,
 };

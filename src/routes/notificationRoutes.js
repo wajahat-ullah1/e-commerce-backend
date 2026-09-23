@@ -7,12 +7,21 @@ const authenticate = require("../middleware/authMiddleware");
 
 router.get("/", authenticate, notificationController.getNotifications);
 
-router.get("/unread-count", authenticate, notificationController.getUnreadCount);
+router.get(
+  "/unread-count",
+  authenticate,
+  notificationController.getUnreadCount,
+);
 
 router.put(
   "/:id/read",
   authenticate,
   notificationController.markNotificationAsRead,
 );
+
+router.delete("/:id", authenticate, notificationController.deleteNotification);
+router.delete("/", authenticate, notificationController.clearAllNotifications);
+
+router.get("/stream", notificationController.streamNotifications);
 
 module.exports = router;
