@@ -30,7 +30,10 @@ async function getTopProducts(limit = 5) {
 
   const products = await prisma.product.findMany({
     where: { id: { in: top.map((t) => t.productId) } },
-    include: { category: { select: { name: true } } },
+    include: {
+      category: { select: { name: true } },
+      images: { orderBy: { position: "asc" }, take: 1 },
+    },
   });
 
   return top.flatMap((t) => {
@@ -39,7 +42,7 @@ async function getTopProducts(limit = 5) {
     return {
       id: p.id,
       name: p.name,
-      image: p.image ?? null, // change if your image field is named differently
+      image: p.images?.[0]?.url ?? null,
       category: p.category?.name ?? "-",
       stock: p.stock,
       unitsSold: t.unitsSold,

@@ -18,6 +18,7 @@ async function getAllCustomers() {
         select: {
           id: true,
           totalAmount: true,
+          status: true,
           createdAt: true,
         },
         orderBy: {
@@ -32,19 +33,16 @@ async function getAllCustomers() {
   return customers.map((customer) => {
     const latestOrder = customer.orders[0];
 
-    const spent = customer.orders.reduce(
-      (total, order) => total + Number(order.totalAmount || 0),
-      0,
-    );
+    const spent = customer.orders
+      .filter((order) => order.status === "DELIVERED")
+      .reduce((total, order) => total + Number(order.totalAmount || 0), 0);
 
     let status = "INACTIVE";
 
     if (latestOrder) {
       const latestOrderDate = new Date(latestOrder.createdAt);
-
       const daysSinceLastOrder =
         (now - latestOrderDate) / (1000 * 60 * 60 * 24);
-
       if (daysSinceLastOrder <= 30) {
         status = "ACTIVE";
       }

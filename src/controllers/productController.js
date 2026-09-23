@@ -3,26 +3,23 @@ const uploadService = require("../services/uploadService");
 const asyncHandler = require("../utils/asyncHandler");
 
 async function createProduct(req, res) {
-  let uploadedImage;
+  let uploadedImages = [];
 
   try {
-    let imageUrl = null;
-    let imagePublicId = null;
+    const files = req.files || [];
 
-    if (req.file) {
-      uploadedImage = await uploadService.uploadImage(req.file.buffer);
-
-      imageUrl = uploadedImage.secure_url;
-      imagePublicId = uploadedImage.public_id;
+    if (files.length) {
+      uploadedImages = await Promise.all(
+        files.map((file) => uploadService.uploadImage(file.buffer)),
+      );
     }
 
-    const productData = {
-      ...req.body,
-      image: imageUrl,
-      imagePublicId,
-    };
+    const images = uploadedImages.map((img) => ({
+      url: img.secure_url,
+      publicId: img.public_id,
+    }));
 
-    const product = await productService.createProduct(productData);
+    const product = await productService.createProduct(req.body, images);
 
     res.status(201).json({
       success: true,
@@ -30,10 +27,12 @@ async function createProduct(req, res) {
       product,
     });
   } catch (error) {
-    // If database creation fails after image upload,
-    // delete the uploaded image
-    if (uploadedImage?.public_id) {
-      await uploadService.deleteImage(uploadedImage.public_id);
+    // If database creation fails after image upload(s),
+    // delete the uploaded images
+    if (uploadedImages.length) {
+      await Promise.all(
+        uploadedImages.map((img) => uploadService.deleteImage(img.public_id)),
+      );
     }
 
     res.status(400).json({
@@ -62,33 +61,46 @@ const getProductById = asyncHandler(async (req, res) => {
 });
 
 async function updateProduct(req, res) {
-  let uploadedImage;
+  let uploadedImages = [];
 
   try {
-    const existingProduct = await productService.getProductById(req.params.id);
+    const files = req.files || [];
 
-    const productData = {
-      ...req.body,
-      image: existingProduct.image,
-      imagePublicId: existingProduct.imagePublicId,
-    };
-
-    // If admin uploaded a new image
-    if (req.file) {
-      uploadedImage = await uploadService.uploadImage(req.file.buffer);
-
-      productData.image = uploadedImage.secure_url;
-      productData.imagePublicId = uploadedImage.public_id;
+    // The admin submits the ids of existing images it wants to keep, in the
+    // desired order, as a JSON array string — e.g. existingImages="[12,15]".
+    // Anything already on the product but missing from this list is treated
+    // as removed.
+    let keepImageIds = [];
+    if (req.body.existingImages) {
+      try {
+        keepImageIds = JSON.parse(req.body.existingImages);
+      } catch {
+        keepImageIds = [];
+      }
     }
 
-    const product = await productService.updateProduct(
+    if (files.length) {
+      uploadedImages = await Promise.all(
+        files.map((file) => uploadService.uploadImage(file.buffer)),
+      );
+    }
+
+    const newImages = uploadedImages.map((img) => ({
+      url: img.secure_url,
+      publicId: img.public_id,
+    }));
+
+    const { product, deletedImages } = await productService.updateProduct(
       req.params.id,
-      productData,
+      req.body,
+      { keepImageIds, newImages },
     );
 
-    // Delete old image AFTER successful database update
-    if (req.file && existingProduct.imagePublicId) {
-      await uploadService.deleteImage(existingProduct.imagePublicId);
+    // Only clean up Cloudinary once the DB update has actually committed.
+    if (deletedImages.length) {
+      await Promise.all(
+        deletedImages.map((img) => uploadService.deleteImage(img.publicId)),
+      );
     }
 
     res.status(200).json({
@@ -97,9 +109,11 @@ async function updateProduct(req, res) {
       product,
     });
   } catch (error) {
-    // Delete newly uploaded image if something failed
-    if (uploadedImage?.public_id) {
-      await uploadService.deleteImage(uploadedImage.public_id);
+    // Delete newly uploaded images if something failed
+    if (uploadedImages.length) {
+      await Promise.all(
+        uploadedImages.map((img) => uploadService.deleteImage(img.public_id)),
+      );
     }
 
     res.status(400).json({
@@ -130,14 +144,16 @@ const deleteProduct = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  // Delete image from Cloudinary
-  if (product.imagePublicId) {
-    await uploadService.deleteImage(product.imagePublicId);
+  // Delete images from Cloudinary
+  if (product.images?.length) {
+    await Promise.all(
+      product.images.map((img) => uploadService.deleteImage(img.publicId)),
+    );
   }
 
   res.status(200).json({
     success: true,
-    message: "Product and image deleted successfully",
+    message: "Product and images deleted successfully",
   });
 });
 

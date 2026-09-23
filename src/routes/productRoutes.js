@@ -20,7 +20,7 @@ router.post(
   "/",
   authenticate,
   authorize("ADMIN"),
-  upload.single("image"),
+  upload.array("images", 8),
   validate(createProductSchema),
   productController.createProduct,
 );
@@ -29,7 +29,7 @@ router.put(
   "/:id",
   authenticate,
   authorize("ADMIN"),
-  upload.single("image"),
+  upload.array("images", 8),
   productController.updateProduct,
 );
 
