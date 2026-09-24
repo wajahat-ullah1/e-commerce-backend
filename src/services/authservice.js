@@ -6,7 +6,7 @@ const AppError = require("../utils/AppError");
 const cartService = require("./cartService");
 const emailService = require("./emailService");
 
-async function registerUser({ name, email, phone, password }) {
+async function registerUser({ name, email, phone, password, guestCartId }) {
   logger.info("Register User Endpoint Hit..");
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
@@ -64,10 +64,14 @@ async function registerUser({ name, email, phone, password }) {
     })),
   });
 
+  // Pick up anything they added to their cart before creating an account
+  if (guestCartId) {
+    await cartService.mergeGuestCartIntoUserCart(guestCartId, user.id);
+  }
   return user;
 }
 
-async function loginUser({ email, password }) {
+async function loginUser({ email, password, guestCartId }) {
   logger.info("Login User Endpoint Hit..");
   // Find user by email
   const user = await prisma.user.findUnique({
@@ -89,12 +93,12 @@ async function loginUser({ email, password }) {
 
   logger.info("User Logged In Successfully..");
 
+  // Pick up anything they added to their cart before logging in
+  if (guestCartId) {
+    await cartService.mergeGuestCartIntoUserCart(guestCartId, user.id);
+  }
+
   return user;
-  // try {
-  // } catch (error) {
-  //   logger.error("Login User Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function forgotPassword(email) {
@@ -239,6 +243,20 @@ async function registerFromGuestOrder({ orderId, guestCartId, password }) {
       },
       data: {
         userId: newUser.id,
+      },
+    });
+
+    // Save the shipping address from this order as their first saved address
+    await tx.address.create({
+      data: {
+        userId: newUser.id,
+        addressLine1: order.shippingAddressLine1,
+        addressLine2: order.shippingAddressLine2,
+        city: order.shippingCity,
+        state: order.shippingState,
+        postalCode: order.shippingPostalCode,
+        country: order.shippingCountry,
+        isDefault: true,
       },
     });
 

@@ -3,13 +3,14 @@ const { generateToken } = require("../utils/jwt");
 const asyncHandler = require("../utils/asyncHandler");
 
 const register = asyncHandler(async (req, res) => {
-  const { name, email, phone, password } = req.body;
+  const { name, email, phone, password, guestCartId } = req.body;
 
   const user = await authService.registerUser({
     name,
     email,
     phone,
     password,
+    guestCartId,
   });
 
   res.status(201).json({
@@ -26,12 +27,13 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, guestCartId } = req.body;
 
   // Verify user credentials
   const user = await authService.loginUser({
     email,
     password,
+    guestCartId,
   });
 
   // Generate JWT token

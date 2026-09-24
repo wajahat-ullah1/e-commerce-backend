@@ -73,6 +73,8 @@ async function addToCart(userId, productId, quantity = 1) {
   // }
 }
 
+const IMAGE_ORDER = { orderBy: { position: "asc" } };
+
 async function getCart(userId) {
   logger.info("Get Cart By User Id Endpoint Hit..");
   const cart = await prisma.cart.findUnique({
@@ -82,7 +84,9 @@ async function getCart(userId) {
     include: {
       items: {
         include: {
-          product: true,
+          product: {
+            include: { images: IMAGE_ORDER, category: true },
+          },
         },
       },
     },
@@ -90,11 +94,6 @@ async function getCart(userId) {
   logger.info("Cart Fetched Successfully..");
 
   return cart;
-  // try {
-  // } catch (error) {
-  //   logger.error("Getting Cart Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function updateCartItem(userId, productId, quantity) {

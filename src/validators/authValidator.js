@@ -8,12 +8,16 @@ const registerSchema = Joi.object({
   phone: Joi.string().min(10).max(12).required(),
 
   password: Joi.string().min(6).required(),
+
+  guestCartId: Joi.string().optional(),
 });
 
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
 
   password: Joi.string().required(),
+
+  guestCartId: Joi.string().optional(),
 });
 
 const changePasswordSchema = Joi.object({

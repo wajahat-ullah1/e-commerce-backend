@@ -10,7 +10,9 @@ const createProductSchema = Joi.object({
   stock: Joi.number().integer().min(0).required(),
 
   categoryId: Joi.number().integer().positive().required(),
-});
+
+  imageOrder: Joi.string().optional(),
+})
 
 module.exports = {
   createProductSchema,

@@ -13,6 +13,8 @@ async function createGuestCart() {
   return guestCart;
 }
 
+const IMAGE_ORDER = { orderBy: { position: "asc" } };
+
 async function getGuestCart(guestCartId) {
   logger.info("Get Guest Cart By Id Endpoint Hit..");
 
@@ -23,7 +25,9 @@ async function getGuestCart(guestCartId) {
     include: {
       items: {
         include: {
-          product: true,
+          product: {
+            include: { images: IMAGE_ORDER, category: true },
+          },
         },
       },
     },

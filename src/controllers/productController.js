@@ -14,12 +14,31 @@ async function createProduct(req, res) {
       );
     }
 
-    const images = uploadedImages.map((img) => ({
+    // On create every token is "new" (there are no existing images yet),
+    // consumed in upload order — mirrors the update flow's imageOrder logic.
+    let imageOrder = null;
+    if (req.body.imageOrder) {
+      try {
+        imageOrder = JSON.parse(req.body.imageOrder);
+      } catch {
+        imageOrder = null;
+      }
+    }
+
+    const newImages = uploadedImages.map((img) => ({
       url: img.secure_url,
       publicId: img.public_id,
     }));
 
-    const product = await productService.createProduct(req.body, images);
+    let orderedImages = newImages;
+    if (imageOrder) {
+      let idx = 0;
+      orderedImages = imageOrder
+        .map((token) => (token === "new" ? newImages[idx++] : null))
+        .filter(Boolean);
+    }
+
+    const product = await productService.createProduct(req.body, orderedImages);
 
     res.status(201).json({
       success: true,
@@ -66,16 +85,18 @@ async function updateProduct(req, res) {
   try {
     const files = req.files || [];
 
-    // The admin submits the ids of existing images it wants to keep, in the
-    // desired order, as a JSON array string — e.g. existingImages="[12,15]".
-    // Anything already on the product but missing from this list is treated
-    // as removed.
-    let keepImageIds = [];
-    if (req.body.existingImages) {
+    // The admin's gallery UI submits the full desired order as a JSON array
+    // of tokens — an existing image's id (string) to keep it in that slot,
+    // or the literal "new" to consume the next freshly-uploaded file, in
+    // upload order. e.g. imageOrder = '["new","12","15"]' means: the new
+    // upload goes first, then existing images 12 and 15. Omitted entirely
+    // (admin never touched the gallery) leaves existing images untouched.
+    let imageOrder = null;
+    if (req.body.imageOrder) {
       try {
-        keepImageIds = JSON.parse(req.body.existingImages);
+        imageOrder = JSON.parse(req.body.imageOrder);
       } catch {
-        keepImageIds = [];
+        imageOrder = null;
       }
     }
 
@@ -93,7 +114,7 @@ async function updateProduct(req, res) {
     const { product, deletedImages } = await productService.updateProduct(
       req.params.id,
       req.body,
-      { keepImageIds, newImages },
+      { imageOrder, newImages },
     );
 
     // Only clean up Cloudinary once the DB update has actually committed.
