@@ -2,6 +2,8 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
 const logger = require("../utils/logger");
 
+const IMAGE_ORDER = { orderBy: { position: "asc" } };
+
 const addToWishlist = async (userId, productId) => {
   logger.info(`Adding product ${productId} to wishlist for user ${userId}`);
   const product = await prisma.product.findUnique({
@@ -47,7 +49,7 @@ const getWishlist = async (userId) => {
       userId: Number(userId),
     },
     include: {
-      product: true,
+      product: { include: { images: IMAGE_ORDER, category: true } },
     },
   });
   return wishlistItems;

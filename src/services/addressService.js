@@ -7,6 +7,7 @@ const createAddress = async (userId, data) => {
   logger.info(`Creating address for user ID: ${userId}`);
 
   const {
+    label,
     addressLine1,
     addressLine2,
     city,
@@ -76,6 +77,7 @@ const createAddress = async (userId, data) => {
     address = await prisma.address.create({
       data: {
         userId: numericUserId,
+        label,
         addressLine1,
         addressLine2,
         city,
@@ -96,12 +98,9 @@ const createAddress = async (userId, data) => {
       },
     });
   } catch (error) {
-    // Database-level duplicate protection
     if (error.code === "P2002") {
       throw new AppError("This address already exists", 409);
     }
-
-    // Pass unexpected errors to the global error handler
     throw error;
   }
 
@@ -154,6 +153,7 @@ const updateAddress = async (userId, addressId, data) => {
   }
 
   const {
+    label,
     addressLine1,
     addressLine2,
     city,
@@ -185,15 +185,14 @@ const updateAddress = async (userId, addressId, data) => {
       id: Number(addressId),
     },
     data: {
+      label,
       addressLine1,
       addressLine2,
       city,
       state,
       postalCode,
       country,
-      ...(isDefault !== undefined && {
-        isDefault,
-      }),
+      ...(isDefault !== undefined && { isDefault }),
     },
   });
   logger.info(`Address with ID: ${addressId} updated for user ID: ${userId}`);

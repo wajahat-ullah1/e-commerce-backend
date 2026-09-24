@@ -5,6 +5,8 @@ const notificationService = require("./notificationService");
 const emailService = require("./emailService");
 const inventoryService = require("./inventoryService");
 
+const IMAGE_ORDER = { orderBy: { position: "asc" } };
+
 //For Customers **********************************************************
 
 // Guest Users
@@ -394,9 +396,10 @@ async function getMyOrders(userId) {
     include: {
       items: {
         include: {
-          product: true,
+          product: { include: { images: IMAGE_ORDER, category: true } },
         },
       },
+      invoice: true,
     },
     orderBy: {
       createdAt: "desc",
@@ -405,11 +408,6 @@ async function getMyOrders(userId) {
 
   logger.info("Orders Fetched Successfully..");
   return orders;
-  // try {
-  // } catch (error) {
-  //   logger.error("Getting Order Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function getOrderById(userId, orderId) {
@@ -422,9 +420,10 @@ async function getOrderById(userId, orderId) {
     include: {
       items: {
         include: {
-          product: true,
+          product: { include: { images: IMAGE_ORDER, category: true } },
         },
       },
+      invoice: true,
     },
   });
 
@@ -434,11 +433,6 @@ async function getOrderById(userId, orderId) {
   logger.info("Order Fetched Successfully..");
 
   return order;
-  // try {
-  // } catch (error) {
-  //   logger.error("Getting Order Error:", error.message);
-  //   throw error;
-  // }
 }
 
 async function cancelOrder(userId, orderId) {
@@ -502,13 +496,21 @@ async function cancelOrder(userId, orderId) {
         status: "CANCELLED",
         paymentStatus: "FAILED",
       },
+      include: {
+        items: {
+          include: {
+            product: { include: { images: IMAGE_ORDER, category: true } },
+          },
+        },
+        invoice: true,
+      },
     });
-
     return updatedOrder;
   });
   await notificationService.createAdminNotification(
     "Order Cancelled",
     `Customer ${order.customerName} has cancelled order #${order.id}.`,
+    "cancel"
   );
 
   logger.info("Order Cancelled Successfully..");
