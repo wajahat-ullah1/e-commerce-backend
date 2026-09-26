@@ -1,6 +1,8 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
 
+const IMAGE_ORDER = { orderBy: { position: "asc" } };
+
 async function getMyInvoice(userId, invoiceId) {
   const invoice = await prisma.invoice.findFirst({
     where: {
@@ -14,7 +16,7 @@ async function getMyInvoice(userId, invoiceId) {
         include: {
           items: {
             include: {
-              product: true,
+              product: { include: { images: IMAGE_ORDER, category: true } },
             },
           },
         },
@@ -39,7 +41,7 @@ async function getInvoiceById(invoiceId) {
         include: {
           items: {
             include: {
-              product: true,
+              product: { include: { images: IMAGE_ORDER, category: true } },
             },
           },
         },
@@ -61,7 +63,7 @@ async function getAllInvoices() {
         select: {
           id: true,
           customerName: true,
-          customerPhone:true,
+          customerPhone: true,
           customerEmail: true,
           shippingAddressLine1: true,
           totalAmount: true,

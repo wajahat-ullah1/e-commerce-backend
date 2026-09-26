@@ -510,7 +510,7 @@ async function cancelOrder(userId, orderId) {
   await notificationService.createAdminNotification(
     "Order Cancelled",
     `Customer ${order.customerName} has cancelled order #${order.id}.`,
-    "cancel"
+    "cancel",
   );
 
   logger.info("Order Cancelled Successfully..");
@@ -534,7 +534,9 @@ async function getAllOrders() {
       },
       items: {
         include: {
-          product: true,
+          product: {
+            include: { images: IMAGE_ORDER, category: true },
+          },
         },
       },
     },

@@ -132,6 +132,7 @@ const getProductReviews = async (productId) => {
         select: {
           id: true,
           name: true,
+          profileImage: true,
         },
       },
     },
