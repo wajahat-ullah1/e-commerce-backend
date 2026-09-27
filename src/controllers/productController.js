@@ -70,6 +70,16 @@ const getProducts = asyncHandler(async (req, res) => {
   });
 });
 
+const getBestSellers = asyncHandler(async (req, res) => {
+  const { limit } = req.query;
+  const products = await productService.getBestSellers(limit);
+
+  res.status(200).json({
+    success: true,
+    products,
+  });
+});
+
 const getProductById = asyncHandler(async (req, res) => {
   const product = await productService.getProductById(req.params.id);
 
@@ -181,6 +191,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
 module.exports = {
   createProduct,
   getProducts,
+  getBestSellers,
   getProductById,
   updateProduct,
   deleteProduct,

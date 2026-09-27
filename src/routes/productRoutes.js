@@ -13,6 +13,9 @@ const router = express.Router();
 // Public routes
 router.get("/", productController.getProducts);
 
+// Must come before "/:id" so it isn't matched as a product id.
+router.get("/best-sellers", productController.getBestSellers);
+
 router.get("/:id", productController.getProductById);
 
 // Admin routes

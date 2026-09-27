@@ -148,6 +148,66 @@ async function getProducts(query) {
   };
 }
 
+async function getBestSellers(limit = 4) {
+  logger.info("Get Best Sellers Endpoint Hit..");
+
+  const take = Number(limit) > 0 ? Number(limit) : 4;
+
+  // Sum quantities sold per product from completed/active orders only.
+  const orderTotals = await prisma.orderItem.groupBy({
+    by: ["productId"],
+    where: { order: { status: { notIn: ["CANCELLED", "RETURNED"] } } },
+    _sum: { quantity: true },
+  });
+
+  const ranked = orderTotals
+    .map((row) => ({
+      productId: row.productId,
+      unitsSold: row._sum.quantity || 0,
+    }))
+    .sort((a, b) => b.unitsSold - a.unitsSold)
+    .slice(0, take);
+
+  if (ranked.length === 0) {
+    return [];
+  }
+
+  const [products, ratings] = await Promise.all([
+    prisma.product.findMany({
+      where: { id: { in: ranked.map((r) => r.productId) } },
+      include: { category: true, images: IMAGE_ORDER },
+    }),
+    prisma.review.groupBy({
+      by: ["productId"],
+      where: { productId: { in: ranked.map((r) => r.productId) } },
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
+  ]);
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const ratingMap = new Map(ratings.map((r) => [r.productId, r]));
+
+  logger.info("Best Sellers Fetched Successfully..");
+
+  // Preserve the unitsSold ranking order; skip any product that was deleted
+  // after the order was placed.
+  return ranked
+    .map((r) => {
+      const product = productMap.get(r.productId);
+      if (!product) return null;
+
+      const rating = ratingMap.get(product.id);
+      return {
+        ...withPrimaryImage(product),
+        rating: rating?._avg.rating ? Number(rating._avg.rating.toFixed(1)) : 0,
+        totalReviews: rating?._count.rating || 0,
+        unitsSold: r.unitsSold,
+      };
+    })
+    .filter(Boolean);
+}
+
 async function getProductById(id) {
   logger.info("Get Product By Id Endpoint Hit..");
   const product = await prisma.product.findUnique({
@@ -282,6 +342,7 @@ async function deleteProduct(id) {
 module.exports = {
   createProduct,
   getProducts,
+  getBestSellers,
   getProductById,
   updateProduct,
   deleteProduct,

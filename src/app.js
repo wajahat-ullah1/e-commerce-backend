@@ -25,6 +25,8 @@ const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 
+app.disable("etag");
+
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
